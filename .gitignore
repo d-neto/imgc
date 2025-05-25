@@ -1,0 +1,9 @@
+*.png
+*.jpg
+lib/*
+bin/*
+dist/*
+
+!.keep
+!*.sample.png
+!*.sample.jpg
