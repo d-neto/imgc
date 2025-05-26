@@ -135,6 +135,8 @@ image_t mask_offset_a(image_t src, image_t mask_src, int off_x, int off_y, int i
  * Convulation & Filters methods declaration
  */
 
+typedef enum smooth_type {SMH_GAUSSIAN, SMH_MEAN, SMH_MEDIAN} smooth_t;
+
 image_t convolve(image_t image, matrix_t kernel);
 image_t sobel(image_t image);
 image_t laplacian(image_t image);
@@ -144,8 +146,8 @@ image_t mean(image_t source, int ksize);
 image_t median(image_t image, int ksize);
 image_t gaussian(image_t source, int ksize, double sigma);
 image_t sobel_x5(image_t image);
-
-
+image_t highboost(image_t input, double intensity);
+image_t highboost__spec(image_t input, double intensity, smooth_t smooth_type, int ksize, double g_sigma);
 /**
  * Threshold methods declaration
  */

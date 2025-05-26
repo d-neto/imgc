@@ -8,10 +8,13 @@ BIN_PATH=./bin
 IMAGE_OBJ=$(DIST_PATH)/images.o  $(DIST_PATH)/intensity.o $(DIST_PATH)/convolve.o $(DIST_PATH)/blend.o $(DIST_PATH)/transform.o $(DIST_PATH)/histogram.o $(DIST_PATH)/thresh.o
 LIBIMGC_OBJ=$(DIST_PATH)/alloc.o $(IMAGE_OBJ) $(DIST_PATH)/matrix.o $(DIST_PATH)/geom.o 
 
-all: example ./lib/libimagec.a
+all: example example-highboost ./lib/libimagec.a
 
 example: ./examples/main.c ./lib/libimagec.a
 	$(CC) $(CFLAGS) -I./includes -L./lib -o $(BIN_PATH)/$@ ./examples/main.c -limagec -lm
+
+example-highboost: ./examples/highboost.c ./lib/libimagec.a
+	$(CC) $(CFLAGS) -I./includes -L./lib -o $(BIN_PATH)/$@ ./examples/highboost.c -limagec -lm
 
 ./lib/libimagec.a: $(LIBIMGC_OBJ)
 	ar rcs $@ $^ -lm

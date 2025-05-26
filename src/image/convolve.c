@@ -247,3 +247,28 @@ image_t sobel_x5(image_t image) {
     }
     return new_image;
 }
+
+image_t highboost(image_t input, double intensity){
+    return highboost__spec(input, intensity, SMH_GAUSSIAN, 5, 1.0);
+}
+
+image_t highboost__spec(image_t input, double intensity, smooth_t smooth_type, int ksize, double g_sigma){
+    image_t smooth;
+    switch(smooth_type){
+        default:
+        case SMH_GAUSSIAN:
+            smooth = gaussian(input, ksize, g_sigma);
+            break;
+        case SMH_MEAN:
+            smooth = mean(input, ksize);
+        case SMH_MEDIAN:
+            smooth = median(input, ksize);
+            break;
+    }
+    image_t sub_result = sub(input, smooth);
+    image_t result = clone(input);
+    FOREACH_PXL(result, {
+        PXL_AT(result, x, y, c) += (intensity * PXL_AT(sub_result, x, y, c));
+    });
+    return result;
+}
