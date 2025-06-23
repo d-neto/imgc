@@ -49,14 +49,26 @@ image_t create_image(int w, int h, int ch){
     image_t image = {
         .h = h,
         .w = w,
-        .channels = ch
+        .channels = ch,
+        .bounds = boundaries(0, 0, w, h)
     };
     image.data = ALLOC(sizeof(*image.data)*image.w*image.h*image.channels);
     assert(image.data);
+
+    for(int i = 0; i < image.w*image.h*image.channels; ++i)
+        image.data[i] = 0;
+
     return image;
 }
 
-image_t load_image(char * filename){
+image_t img_load(char *_fmt_filename, ...){
+
+    char filename[256] = {0};
+    va_list args;
+    va_start(args, _fmt_filename);
+    vsnprintf(filename, sizeof(filename), _fmt_filename, args);
+    va_end(args);
+
     image_t image = {0};
     void * data = stbi_load(filename, &image.w, &image.h, &image.channels, 0);
 
@@ -75,10 +87,21 @@ image_t load_image(char * filename){
         image.data[i] = *value;
     }
     FREE(data);
+
+    image.bounds = boundaries(0, 0, image.w, image.h);
+    image._slice = 0;
+
     return image;
 }
 
-void write_image(char * filename, image_t image){
+void img_write(image_t image, char *_fmt_filename, ...){
+
+    char filename[256] = {0};
+    va_list args;
+    va_start(args, _fmt_filename);
+    vsnprintf(filename, sizeof(filename), _fmt_filename, args);
+    va_end(args);  
+
     int size = image.w*image.h*image.channels;
     unsigned char * data = ALLOC(sizeof(*data)*size);
     assert(data);
@@ -102,12 +125,20 @@ void free_image(image_t * image){
     image->data = NULL;
 }
 
+image_t from_bounds(image_t source){
+    int w = source.bounds.x2 - source.bounds.x1;
+    int h = source.bounds.y2 - source.bounds.y1;
+    image_t new_image = create_image(w, h, source.channels);
+    return new_image;
+}
+
 image_t clone(image_t source){
     image_t new_image = {
         .channels = source.channels,
         .h = source.h,
         .w = source.w,
-        .data = ALLOC(sizeof(*source.data)*source.w*source.h*source.channels)
+        .data = ALLOC(sizeof(*source.data)*source.w*source.h*source.channels),
+        .bounds = source.bounds
     };
     assert(new_image.data);
     int size = source.w*source.h*source.channels;
@@ -121,21 +152,26 @@ image_t rgb2gray(image_t image){
         .h = image.h,
         .w = image.w,
         .data = NULL,
-        .channels = 1
+        .channels = 1,
+        .bounds = image.bounds
     };
 
     new_image.data = ALLOC(sizeof(*new_image.data)*new_image.h*new_image.w);
     assert(new_image.data);
 
-    size_t max = new_image.h*new_image.w;
-    for(size_t i = 0; i < max; ++i){
-        if(image.data[(i*image.channels)] == VOID_PIXEL){
-            new_image.data[i] = VOID_PIXEL;
+    FOREACH_PXL(new_image, {
+        if(PXL_AT(image, x, y, c) == VOID_PIXEL){
+            PXL_AT(new_image, x, y, c) = VOID_PIXEL;
             continue;
         }
-        new_image.data[i] = 0.3 * image.data[(i*image.channels)] + 0.59 * image.data[(i*image.channels)+1] + 0.11 * image.data[(i*image.channels)+2];
-        // new_image.data[i] = (image.data[(i*image.channels)] + image.data[(i*image.channels)+1] + image.data[(i*image.channels)+2])/3;
-    }
+        /**
+         * new_image.data[i] = (image.data[(i*image.channels)] + image.data[(i*image.channels)+1] + image.data[(i*image.channels)+2])/3;
+         */
+        double red = PXL_AT(image, x, y, 0);
+        double green = PXL_AT(image, x, y, 1);
+        double blue = PXL_AT(image, x, y, 2);
+        PXL_AT(new_image, x, y, c) = 0.3*red + 0.59*green + 0.11*blue;
+    });
 
     return new_image;
 }
@@ -148,6 +184,7 @@ void upgrade(image_t * image, int channels){
     image->h = clonned.h;
     image->channels = channels;
     image->data = ALLOC(sizeof(*image->data)*clonned.h*clonned.w*channels);
+    image->bounds = clonned.bounds;
     assert(image->data);
 
     FOREACH_PXL(*image, {
@@ -160,36 +197,27 @@ void upgrade(image_t * image, int channels){
     free_image(&clonned);
 }
 
-image_t paste(image_t src, image_t dest, int x, int y){
-
+image_t paste(image_t src, image_t dest, int x_offset, int y_offset){
     if(dest.channels < src.channels) upgrade(&dest, src.channels);
 
-    size_t pos = 0;
     int tx = 0, ty = 0;
 
-    int channels = dest.channels;
-    
-    for(size_t i = 0; i < src.h; ++i){
-        ty = (y + i);
-        for(size_t j = 0; j < src.w; ++j){
-            tx = (x + j);
-            for(size_t c = 0; c < channels; ++c){
-                if(src.channels <= c) {
-                    if(src.data[(i*src.w + j)*src.channels + 0] == VOID_PIXEL) continue; 
-                    PXL_AT(dest, tx, ty, c) = src.data[(i*src.w + j)*src.channels + 0];
-                    continue;
-                }
-                if(src.data[(i*src.w + j)*src.channels + c] == VOID_PIXEL) {
-                    continue;
-                }
-                pos = (ty * dest.w + tx) * dest.channels + c;
-                if(pos > (dest.w * dest.h * dest.channels))
-                    continue;
-                else
-                    PXL_AT(dest, tx, ty, c) = src.data[(i*src.w + j)*src.channels + c];
-            }
+    FOREACH_PXL(src, {
+        channels = dest.channels;
+        tx = (x + x_offset);
+        ty = (y + y_offset);
+
+        if(tx >= dest.w || ty >= dest.h) continue;
+        if(x >= src.w || y >= src.h) continue;
+
+        if(src.channels-1 >= c) {
+            if(PXL_AT(src, x, y, c) == VOID_PIXEL) continue; 
+            PXL_AT(dest, tx, ty, c) = PXL_AT(src, x, y, c);
+            continue;
+        } else {
+            PXL_AT(dest, tx, ty, c) = PXL_AT(src, x, y, 0);
         }
-    }
+    });
     return dest;
 }
 

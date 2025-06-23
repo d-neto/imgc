@@ -45,6 +45,7 @@ void print_polygon(polygon_t p);
 vec2_t vec2(int x, int y);
 geometry_t polygon(int count, ...);
 geometry_t rect(int x, int y, int x2, int y2);
+rect_t boundaries(int x, int y, int x2, int y2);
 int polygon_is_point_inside(polygon_t polygon, vec2_t p);
 
 #endif /* __GEOM_IMAGEC_H__ */

@@ -1,7 +1,7 @@
 #include "imagec.h"
 
 image_t threshold(image_t image, thresh_t mode){
-    image_t result = clone(image);
+    image_t result = from_bounds(image);
     int t = 0;
     switch(mode){
         case THRESH_OTSU:
@@ -11,18 +11,14 @@ image_t threshold(image_t image, thresh_t mode){
             t = thresh_iterative(histdata(image));
             break;
     }
-    for (int y = 0; y < result.h; ++y) {
-        for (int x = 0; x < result.w; ++x) {
-            for (int c = 0; c < result.channels; ++c) {
-                if (c == 3 || PXL_AT(image, x, y, c) == VOID_PIXEL) {
-                    PXL_AT(result, x, y, c) = PXL_AT(image, x, y, c);
-                    continue;
-                }
-                int val = (int)PXL_AT(image, x, y, c);
-                PXL_AT(result, x, y, c) = (val > t) ? 255 : 0;
-            }
+    FOREACH_PXL(result, {
+        if (c == 3 || PXL_AT(image, x, y, c) == VOID_PIXEL) {
+            PXL_AT(result, x, y, c) = PXL_AT(image, x, y, c);
+            continue;
         }
-    }
+        int val = (int)PXL_AT(image, x, y, c);
+        PXL_AT(result, x, y, c) = (val > t) ? 255 : 0;
+    });
     return result;
 }
 
@@ -362,7 +358,7 @@ image_t threshold_adaptive_stddev(image_t image, int ksize, double a, double b){
             var /= values.count;
             double sigma = sqrt(var);
 
-            double thresh = a * sigma + b * global_mean;
+            double thresh = (a * sigma) + (b * global_mean);
 
             double val = PXL_AT(image, x, y, 0);
             PXL_AT(output, x, y, 0) = val > thresh ? 255.0 : 0.0;
@@ -470,4 +466,204 @@ image_t global_stddev(image_t image, int ksize) {
         }
     }
     return output;
+}
+
+image_t non_max_supression(image_t magnitude, image_t direction) {
+    image_t nms = create_image(magnitude.w, magnitude.h, 1);
+    memset(nms.data, 0, nms.w * nms.h * sizeof(float)); // Inicializa a imagem com zeros
+
+    // Itera de 1 a w-1 e h-1 para evitar acessos fora dos limites da imagem.
+    for (int y = 1; y < magnitude.h - 1; ++y) {
+        for (int x = 1; x < magnitude.w - 1; ++x) {
+            float angle = PXL_AT(direction, x, y, 0);
+            float mag = PXL_AT(magnitude, x, y, 0);
+
+            // Se a magnitude for zero, não é uma borda, podemos saltar.
+            if (mag == 0) continue;
+
+            float q = 0.0f;
+            float r = 0.0f;
+
+            // Quantiza a direção do gradiente e encontra os vizinhos para comparar
+            if ((0 <= angle && angle < 22.5) || (157.5 <= angle && angle <= 180)) {
+                // Borda vertical -> Gradiente horizontal
+                q = PXL_AT(magnitude, x + 1, y, 0);
+                r = PXL_AT(magnitude, x - 1, y, 0);
+            } else if (22.5 <= angle && angle < 67.5) {
+                // Borda a 135 graus -> Gradiente a 45 graus
+                // **ESTA É A CORREÇÃO CRÍTICA**
+                q = PXL_AT(magnitude, x + 1, y + 1, 0); // VIZINHO CORRETO
+                r = PXL_AT(magnitude, x - 1, y - 1, 0); // VIZINHO CORRETO
+            } else if (67.5 <= angle && angle < 112.5) {
+                // Borda horizontal -> Gradiente vertical
+                q = PXL_AT(magnitude, x, y + 1, 0);
+                r = PXL_AT(magnitude, x, y - 1, 0);
+            } else if (112.5 <= angle && angle < 157.5) {
+                // Borda a 45 graus -> Gradiente a 135 graus
+                q = PXL_AT(magnitude, x - 1, y + 1, 0);
+                r = PXL_AT(magnitude, x + 1, y - 1, 0);
+            }
+
+            // Se a magnitude do píxel for maior ou igual à dos seus vizinhos ao longo do gradiente, mantém-na.
+            if (mag >= q && mag >= r) {
+                PXL_AT(nms, x, y, 0) = mag;
+            } else {
+                PXL_AT(nms, x, y, 0) = 0;
+            }
+        }
+    }
+    return nms;
+}
+
+#define STRONG 255
+#define WEAK 100
+
+int in_bounds(int x, int y, int w, int h) {
+    return (x >= 0 && x < w && y >= 0 && y < h);
+}
+
+image_t hysteresis_tracking(image_t nms, double low_thresh, double high_thresh) {
+    int w = nms.w, h = nms.h;
+    image_t result = create_image(w, h, 1);
+
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            double val = PXL_AT(nms, x, y, 0);
+            if (val >= high_thresh)
+                PXL_AT(result, x, y, 0) = STRONG;
+            else if (val >= low_thresh)
+                PXL_AT(result, x, y, 0) = WEAK;
+            else
+                PXL_AT(result, x, y, 0) = 0;
+        }
+    }
+
+    int max_pixels = w * h;
+    int *queue_x = ALLOC(sizeof(int) * max_pixels);
+    int *queue_y = ALLOC(sizeof(int) * max_pixels);
+
+    int front = 0, rear = 0;
+
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x)
+            if (PXL_AT(result, x, y, 0) == STRONG) {
+                queue_x[rear] = x;
+                queue_y[rear] = y;
+                rear++;
+            }
+
+    int dx[8] = {-1, 0, 1, -1, 1, -1, 0, 1};
+    int dy[8] = {-1, -1, -1, 0, 0, 1, 1, 1};
+
+    while (front < rear) {
+        int cx = queue_x[front];
+        int cy = queue_y[front];
+        front++;
+
+        for (int k = 0; k < 8; ++k) {
+            int nx = cx + dx[k];
+            int ny = cy + dy[k];
+
+            if (in_bounds(nx, ny, w, h)) {
+                if (PXL_AT(result, nx, ny, 0) == WEAK) {
+                    PXL_AT(result, nx, ny, 0) = STRONG;
+                    queue_x[rear] = nx;
+                    queue_y[rear] = ny;
+                    rear++;
+                }
+            }
+        }
+    }
+
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x)
+            if (PXL_AT(result, x, y, 0) == WEAK)
+                PXL_AT(result, x, y, 0) = 0;
+
+    free(queue_x);
+    free(queue_y);
+
+    return result;
+}
+
+image_t canny_spec(
+    image_t source, 
+    smooth_t smooth_type, 
+    int ksize, 
+    double sigma, 
+    double low_thresh_ratio, 
+    double high_thresh_ratio
+) {
+    
+    image_t smooth;
+
+    switch(smooth_type){
+        case SMH_MEDIAN:
+            smooth = median(source, ksize);
+            break;
+        case SMH_MEAN:
+            smooth = mean(source, ksize);
+            break;
+        case SMH_GAUSSIAN:
+        default:
+            smooth = gaussian(source, ksize, sigma);
+            break;
+    }
+    
+    matrix_t sobel_x = sobel_x_kernel();
+    matrix_t sobel_y = sobel_y_kernel();
+    image_t gx = convolve(smooth, sobel_x);
+    image_t gy = convolve(smooth, sobel_y);
+
+    free_matrix(&sobel_x);
+    free_matrix(&sobel_y);
+    free_image(&smooth);
+
+    image_t magnitude = create_image(source.w, source.h, 1);
+    image_t direction = create_image(source.w, source.h, 1);
+
+    double max_magnitude = 0.0f;
+
+    FOREACH_PXL(magnitude, {
+        float gx_val = PXL_AT(gx, x, y, 0);
+        float gy_val = PXL_AT(gy, x, y, 0);
+
+        float mag = sqrtf(gx_val * gx_val + gy_val * gy_val);
+        float angle = atan2f(gy_val, gx_val) * (180.0 / M_PI);
+
+        if (angle < 0) angle += 180;
+
+        PXL_AT(magnitude, x, y, 0) = mag;
+        PXL_AT(direction, x, y, 0) = angle;
+
+        if (mag > max_magnitude) {
+            max_magnitude = mag;
+        }
+    });
+
+    free_image(&gx);
+    free_image(&gy);
+
+    image_t nms = non_max_supression(magnitude, direction);
+
+    free_image(&magnitude);
+    free_image(&direction);
+
+    double _high_thresh = 0.3 * max_magnitude;
+    double _low_thresh = 0.4 * _high_thresh;
+
+    if(high_thresh_ratio || low_thresh_ratio) {
+        _high_thresh = max_magnitude * high_thresh_ratio;
+        _low_thresh = _high_thresh * low_thresh_ratio;
+    }
+
+    image_t result = hysteresis_tracking(nms, _low_thresh, _high_thresh);
+
+    free_image(&nms);
+
+    return result;
+}
+
+image_t canny(image_t source, double low_thresh_ratio, double high_thresh_ratio) {
+    return canny_spec(source, SMH_GAUSSIAN, 9, 3.0, low_thresh_ratio, high_thresh_ratio);
 }

@@ -57,7 +57,8 @@ image_t cut_rect(image_t image, rect_t bounds){
         .h = h,
         .w = w,
         .channels = image.channels,
-        .data = NULL
+        .data = NULL,
+        .bounds = boundaries(0, 0, w, h)
     };
     cropped.data = ALLOC(sizeof(*cropped.data)*h*w*cropped.channels);
 
@@ -116,7 +117,8 @@ image_t crop_rect(image_t image, rect_t bounds){
         .h = h,
         .w = w,
         .channels = image.channels,
-        .data = NULL
+        .data = NULL,
+        .bounds = boundaries(0, 0, w, h)
     };
     cropped.data = ALLOC(sizeof(*cropped.data)*h*w*cropped.channels);
 
@@ -159,7 +161,8 @@ image_t cut_polygon(image_t image, polygon_t bounds){
         .h = h,
         .w = w,
         .channels = image.channels,
-        .data = NULL
+        .data = NULL,
+        .bounds = boundaries(0, 0, w, h)
     };
 
     cropped.data = ALLOC(sizeof(*cropped.data)*max_w*max_h*cropped.channels);
@@ -210,7 +213,8 @@ image_t crop_polygon(image_t image, polygon_t bounds){
         .h = h,
         .w = w,
         .channels = image.channels,
-        .data = NULL
+        .data = NULL,
+        .bounds = boundaries(0, 0, w, h)
     };
 
     cropped.data = ALLOC(sizeof(*cropped.data)*max_w*max_h*cropped.channels);

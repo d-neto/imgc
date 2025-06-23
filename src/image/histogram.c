@@ -4,8 +4,12 @@
  * Get histogram data from grayscale image
  * Returns an array with 256 entries
  */
-int * histdata(image_t image){
-    assert(image.channels == 1);
+int * histdata(image_t source){
+    assert(source.channels > 0);
+
+    image_t image = source;
+    if(image.channels > 1) image = rgb2gray(image);
+
     int * histogram = ALLOC(256 * sizeof(*histogram));
     for(int i = 0; i < 256; ++i) histogram[i] = 0;
     int val = 0;

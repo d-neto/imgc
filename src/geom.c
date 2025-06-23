@@ -20,6 +20,16 @@ geometry_t rect(int x, int y, int x2, int y2){
     return (geometry_t) {.type = G_RECT, .rect = r,};
 }
 
+rect_t boundaries(int x, int y, int x2, int y2){
+    rect_t r = {
+        .x1 = x,
+        .x2 = x2,
+        .y1 = y,
+        .y2 = y2
+    };
+    return r;
+}
+
 geometry_t polygon(int count, ...){
     assert(count > 2);
     va_list args;
