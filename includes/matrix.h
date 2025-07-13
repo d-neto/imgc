@@ -1,5 +1,5 @@
-#ifndef __MATRIX_IMAGEC_H__
-#define __MATRIX_IMAGEC_H__
+#ifndef __MATRIX_IMGC_H__
+#define __MATRIX_IMGC_H__
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,4 +52,4 @@ mat_t dot_out(mat_t dest, mat_t m1, mat_t m2);
 mat_t mat_normalize(mat_t mat);
 
 mat_t mat_slice(mat_t source, int r, int c, int offset, int step);
-#endif /* __MATRIX_IMAGEC_H__ */
+#endif /* __MATRIX_IMGC_H__ */

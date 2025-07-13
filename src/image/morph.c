@@ -1,4 +1,4 @@
-#include "imagec.h"
+#include "imgc.h"
 
 img_t img_erode_bin(img_t source, mat_t structure){
     

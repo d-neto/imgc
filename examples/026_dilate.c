@@ -1,4 +1,4 @@
-#include "imagec.h"
+#include "imgc.h"
 
 void create_example_shape(img_t image) {
     for(int i = 0; i < 10; ++i)

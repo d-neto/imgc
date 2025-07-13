@@ -1,5 +1,5 @@
-#ifndef __IMAGEC_H__
-#define __IMAGEC_H__
+#ifndef __IMGC_H__
+#define __IMGC_H__
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -229,4 +229,4 @@ extract_cc_t img_extract_cc(img_t source);
 void img_free_extraction(extract_cc_t * extraction);
 img_t img_hit_or_miss(img_t source, mat_t structure);
 
-#endif // __IMAGEC_H__
+#endif // __IMGC_H__

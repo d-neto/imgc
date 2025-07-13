@@ -1,4 +1,4 @@
-#include "imagec.h"
+#include "imgc.h"
 #include "font.h"
 
 void draw_text_spec(img_t source, const char* text, int x, int y, int point_size, hex_t color) {

@@ -2,7 +2,7 @@
 #ifndef __PARALLEL_H__
 #define __PARALLEL_H__
 
-#include "imagec.h"
+#include "imgc.h"
 #include <omp.h>
 
 #define PARALLEL(__image_input, _slice_count, __operation) ({\

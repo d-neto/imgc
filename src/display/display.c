@@ -1,4 +1,4 @@
-#include "imagec.h"
+#include "imgc.h"
 
 #define MAX_WIN_NAME 512
 

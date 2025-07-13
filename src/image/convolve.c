@@ -1,4 +1,4 @@
-#include "imagec.h"
+#include "imgc.h"
 
 img_t img_conv(img_t image, mat_t kernel){
     

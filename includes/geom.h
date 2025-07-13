@@ -1,5 +1,5 @@
-#ifndef __GEOM_IMAGEC_H__
-#define __GEOM_IMAGEC_H__
+#ifndef __GEOM_IMGC_H__
+#define __GEOM_IMGC_H__
 
 #include <stdarg.h>
 #include <assert.h>
@@ -48,4 +48,4 @@ geometry_t rect(int x, int y, int x2, int y2);
 rect_t boundaries(int x, int y, int x2, int y2);
 int polygon_is_point_inside(polygon_t polygon, vec2_t p);
 
-#endif /* __GEOM_IMAGEC_H__ */
+#endif /* __GEOM_IMGC_H__ */

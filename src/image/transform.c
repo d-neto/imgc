@@ -1,4 +1,4 @@
-#include "imagec.h"
+#include "imgc.h"
 
 img_t crop_rect(img_t image, rect_t bounds);
 img_t crop_polygon(img_t image, polygon_t bounds);

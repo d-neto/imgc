@@ -1,5 +1,6 @@
 CC=gcc
 CFLAGS=-Wall -Wextra
+OPTIMIZE=-O3
 
 SRC_PATH=./src
 DIST_PATH=./dist
@@ -16,27 +17,27 @@ ifeq ($(OS), Linux)
     DISPLAY_FILES_TARGET += $(DIST_PATH)/display_x11.o
 endif
 
-all: ./lib/libimagec.a
+all: ./lib/libimgc.a
 
-./lib/libimagec.a: $(LIBIMGC_OBJ)
+./lib/libimgc.a: $(LIBIMGC_OBJ)
 	ar rcs $@ $^ -lm
 
 $(DIST_PATH)/images.o: $(SRC_PATH)/image/images.c
-	$(CC) $(CFLAGS) -I./includes -c -o $@ $^
+	$(CC) $(CFLAGS) -I./includes $(OPTIMIZE) -c -o $@ $^
 $(DIST_PATH)/histogram.o: $(SRC_PATH)/image/histogram.c
-	$(CC) $(CFLAGS) -I./includes -c -o $@ $^
+	$(CC) $(CFLAGS) -I./includes $(OPTIMIZE) -c -o $@ $^
 $(DIST_PATH)/thresh.o: $(SRC_PATH)/image/thresh.c
-	$(CC) $(CFLAGS) -I./includes -c -o $@ $^
+	$(CC) $(CFLAGS) -I./includes $(OPTIMIZE) -c -o $@ $^
 $(DIST_PATH)/transform.o: $(SRC_PATH)/image/transform.c
-	$(CC) $(CFLAGS) -I./includes -c -o $@ $^
+	$(CC) $(CFLAGS) -I./includes $(OPTIMIZE) -c -o $@ $^
 $(DIST_PATH)/intensity.o: $(SRC_PATH)/image/intensity.c
-	$(CC) $(CFLAGS) -I./includes -c -o $@ $^
+	$(CC) $(CFLAGS) -I./includes $(OPTIMIZE) -c -o $@ $^
 $(DIST_PATH)/convolve.o: $(SRC_PATH)/image/convolve.c
-	$(CC) $(CFLAGS) -I./includes -O3 -c -o $@ $^
+	$(CC) $(CFLAGS) -I./includes $(OPTIMIZE) -c -o $@ $^
 $(DIST_PATH)/blend.o: $(SRC_PATH)/image/blend.c
-	$(CC) $(CFLAGS) -I./includes -c -o $@ $^
+	$(CC) $(CFLAGS) -I./includes $(OPTIMIZE) -c -o $@ $^
 $(DIST_PATH)/morph.o: $(SRC_PATH)/image/morph.c
-	$(CC) $(CFLAGS) -I./includes -O3 -c -o $@ $^
+	$(CC) $(CFLAGS) -I./includes $(OPTIMIZE) -c -o $@ $^
 $(DIST_PATH)/text.o: $(SRC_PATH)/image/text.c
 	$(CC) $(CFLAGS) -I./includes -c -o $@ $^
 
@@ -48,21 +49,21 @@ $(DIST_PATH)/display_x11.o: $(SRC_PATH)/display/x11.c
 	$(CC) $(CFLAGS) -I./includes -c -o $@ $^ -lX11 -lpthreads
 
 $(DIST_PATH)/matrix.o: $(SRC_PATH)/mat/matrix.c
-	$(CC) $(CFLAGS) -I./includes -O3 -c -o $@ $^
+	$(CC) $(CFLAGS) -I./includes $(OPTIMIZE) -c -o $@ $^
 
 $(DIST_PATH)/geom.o: $(SRC_PATH)/geom/geom.c
-	$(CC) $(CFLAGS) -I./includes -c -o $@ $^
+	$(CC) $(CFLAGS) -I./includes $(OPTIMIZE) -c -o $@ $^
 
-$(BIN_PATH)/test_imagec: ./tests/test_imagec.c $(LIBIMGC_OBJ)
-	$(CC) $(CFLAGS) -I./includes -o $@ $^ -lm
+
+# Examples
 
 EXAMPLES_SRC = $(wildcard examples/*.c)
 EXAMPLES = $(patsubst examples/%.c, bin/examples/%, $(EXAMPLES_SRC))
 
 examples: $(EXAMPLES)
 
-bin/examples/%: examples/%.c ./lib/libimagec.a
-	$(CC) $(CFLAGS) -fopenmp -I./includes -L./lib -o $@ $< -limagec -lm -lX11
+bin/examples/%: examples/%.c ./lib/libimgc.a
+	$(CC) $(CFLAGS) -fopenmp -I./includes -L./lib -o $@ $< -limgc -lm -lX11
 
 clean:
-	rm -r $(DIST_PATH)/*.o $(EXAMPLES) ./lib/libimagec.a ./samples/out/*.png
+	rm -r $(DIST_PATH)/*.o $(EXAMPLES) ./lib/libimgc.a ./samples/out/*.png

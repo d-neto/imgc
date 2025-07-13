@@ -6,7 +6,7 @@
 #include <unistd.h> 
 #include <sys/select.h>
 
-#include "imagec.h" 
+#include "imgc.h" 
 
 #define IMGC_W_ICON_SIZE 64
 

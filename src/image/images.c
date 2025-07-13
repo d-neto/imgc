@@ -4,7 +4,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-#include "imagec.h"
+#include "imgc.h"
 
 typedef unsigned char u8_t;
 typedef struct pixel {

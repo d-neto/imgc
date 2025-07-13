@@ -1,4 +1,4 @@
-#include "imagec.h"
+#include "imgc.h"
 
 static img_t create_greater_image_between(img_t im1, img_t im2);
 

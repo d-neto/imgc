@@ -1,4 +1,4 @@
-#include "imagec.h"
+#include "imgc.h"
 
 img_t img_threshold(img_t image, thresh_t mode){
     img_t result = from_bounds(image);

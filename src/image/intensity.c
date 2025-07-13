@@ -1,4 +1,4 @@
-#include "imagec.h"
+#include "imgc.h"
 
 double img_min(img_t image){
     double min = __LONG_MAX__;

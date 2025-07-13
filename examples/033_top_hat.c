@@ -1,4 +1,4 @@
-#include "imagec.h"
+#include "imgc.h"
 #include "parallel.h"
 
 int main(){

@@ -1,4 +1,4 @@
-#include "imagec.h"
+#include "imgc.h"
 
 void draw_circle_with_hole(img_t image, int cx, int cy, int r, int hole_size) {
     for (int y = -r; y <= r; ++y) {

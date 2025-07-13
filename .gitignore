@@ -3,7 +3,9 @@
 lib/*
 bin/*
 dist/*
+bin/examples/*
 
+!bin/examples
 !.keep
 !*.sample.png
 !*.sample.jpg

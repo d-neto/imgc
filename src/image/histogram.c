@@ -1,4 +1,4 @@
-#include "imagec.h"
+#include "imgc.h"
 
 /**
  * Get histogram data from grayscale image
