@@ -1,7 +1,7 @@
 #include "imagec.h"
 
-image_t threshold(image_t image, thresh_t mode){
-    image_t result = from_bounds(image);
+img_t img_threshold(img_t image, thresh_t mode){
+    img_t result = from_bounds(image);
     int t = 0;
     switch(mode){
         case THRESH_OTSU:
@@ -27,13 +27,13 @@ int compare_doubles(const void *a, const void *b) {
     return (diff > 0) - (diff < 0);
 }
 
-image_t threshold_by(image_t image, double value) {
+img_t img_threshold_by(img_t image, double value) {
     /**
      * Threshold based on start index percentile
      *  */ 
-    image_t result = clone(image);
-    for (size_t y = 0; y < image.h; ++y) {
-        for (size_t x = 0; x < image.w; ++x) {
+    img_t result = img_clone(image);
+    for (int y = 0; y < image.h; ++y) {
+        for (int x = 0; x < image.w; ++x) {
             for (int c = 0; c < image.channels; ++c) {
                 if (c == 3) {
                     PXL_AT(result, x, y, c) = PXL_AT(image, x, y, c);
@@ -47,7 +47,7 @@ image_t threshold_by(image_t image, double value) {
     return result;
 }
 
-image_t threshold_percentile(image_t gradient_image, double percentile) {
+img_t img_threshold_prct(img_t gradient_image, double percentile) {
     size_t total_pixels = gradient_image.w * gradient_image.h * gradient_image.channels;
     double * magnitudes = ALLOC(sizeof(double) * total_pixels);
     size_t count = 0;
@@ -55,8 +55,8 @@ image_t threshold_percentile(image_t gradient_image, double percentile) {
     /**
      * Create an array with all image data
      *  */ 
-    for (size_t y = 0; y < gradient_image.h; ++y) {
-        for (size_t x = 0; x < gradient_image.w; ++x) {
+    for (int y = 0; y < gradient_image.h; ++y) {
+        for (int x = 0; x < gradient_image.w; ++x) {
             for (int c = 0; c < gradient_image.channels; ++c) {
                 // Ignore Alpha Channel
                 if (c == 3) continue;
@@ -80,13 +80,13 @@ image_t threshold_percentile(image_t gradient_image, double percentile) {
     if (index >= count) index = count - 1;
     double threshold = magnitudes[index];
     FREE(magnitudes);
-    image_t result = clone(gradient_image);
+    img_t result = img_clone(gradient_image);
 
     /**
      * Threshold based on start index percentile
      *  */
-    for (size_t y = 0; y < result.h; ++y) {
-        for (size_t x = 0; x < result.w; ++x) {
+    for (int y = 0; y < result.h; ++y) {
+        for (int x = 0; x < result.w; ++x) {
             for (int c = 0; c < result.channels; ++c) {
                 if (c == 3) {
                     PXL_AT(result, x, y, c) = PXL_AT(gradient_image, x, y, c);
@@ -257,10 +257,10 @@ int_arr multitresh_otsu(int *histogram) {
  * computed as: `threshold = a * sigma + b * global_mean`.
  * Useful for images with uneven lighting or varying local contrast.
  */
-image_t threshold_adaptive_stddev_fn(image_t image, int ksize, double a, double b, int (*fn)(double, double, double)){
+img_t img_threshold_adp_fn(img_t image, int ksize, double a, double b, int (*fn)(double, double, double)){
     assert(ksize % 2);
 
-    image_t output = clone(image);
+    img_t output = img_clone(image);
 
     int kstart = -ksize/2;
     int kend = ksize/2;
@@ -313,16 +313,16 @@ image_t threshold_adaptive_stddev_fn(image_t image, int ksize, double a, double 
  * computed as: `threshold = a * sigma + b * global_mean`.
  * Useful for images with uneven lighting or varying local contrast.
  */
-image_t threshold_adaptive_stddev(image_t image, int ksize, double a, double b){
+img_t img_threshold_adp(img_t image, int ksize, double a, double b){
     assert(ksize % 2);
 
-    image_t output = clone(image);
+    img_t output = img_clone(image);
 
     int size = image.w * image.h;
 
     double global_mean = 0.0;
     for(int i = 0; i < size; ++i)
-        global_mean += image.data[i];
+        global_mean += image.pixels.data[i];
     global_mean /= size;
 
     int kstart = -ksize/2;
@@ -376,10 +376,10 @@ image_t threshold_adaptive_stddev(image_t image, int ksize, double a, double b){
  * The output image highlights regions with high local variance 
  * (e.g., texture or edges).
  */
-image_t local_stddev(image_t image, int ksize) {
+img_t img_lcl_stddev(img_t image, int ksize) {
     assert(ksize % 2);
 
-    image_t output = clone(image);
+    img_t output = img_clone(image);
 
     int kstart = -ksize/2;
     int kend = ksize/2;
@@ -428,16 +428,16 @@ image_t local_stddev(image_t image, int ksize) {
  * using the global image mean. This highlights variations relative to the global mean,
  * useful for detecting regions that deviate from overall brightness.
  */
-image_t global_stddev(image_t image, int ksize) {
+img_t img_glb_stddev(img_t image, int ksize) {
     assert(ksize % 2);
 
-    image_t output = clone(image);
+    img_t output = img_clone(image);
 
     int size = image.w * image.h;
 
     double global_mean = 0.0;
     for(int i = 0; i < size; ++i)
-        global_mean += image.data[i];
+        global_mean += image.pixels.data[i];
     global_mean /= size;
 
     int kstart = -ksize/2;
@@ -468,9 +468,9 @@ image_t global_stddev(image_t image, int ksize) {
     return output;
 }
 
-image_t non_max_supression(image_t magnitude, image_t direction) {
-    image_t nms = create_image(magnitude.w, magnitude.h, 1);
-    memset(nms.data, 0, nms.w * nms.h * sizeof(float)); // Inicializa a imagem com zeros
+img_t non_max_supression(img_t magnitude, img_t direction) {
+    img_t nms = img_create(magnitude.w, magnitude.h, 1);
+    memset(nms.pixels.data, 0, nms.w * nms.h * sizeof(float)); // Inicializa a imagem com img_zeros
 
     // Itera de 1 a w-1 e h-1 para evitar acessos fora dos limites da imagem.
     for (int y = 1; y < magnitude.h - 1; ++y) {
@@ -522,9 +522,9 @@ int in_bounds(int x, int y, int w, int h) {
     return (x >= 0 && x < w && y >= 0 && y < h);
 }
 
-image_t hysteresis_tracking(image_t nms, double low_thresh, double high_thresh) {
+img_t hysteresis_tracking(img_t nms, double low_thresh, double high_thresh) {
     int w = nms.w, h = nms.h;
-    image_t result = create_image(w, h, 1);
+    img_t result = img_create(w, h, 1);
 
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
@@ -586,8 +586,8 @@ image_t hysteresis_tracking(image_t nms, double low_thresh, double high_thresh) 
     return result;
 }
 
-image_t canny_spec(
-    image_t source, 
+img_t img_canny_spec(
+    img_t source, 
     smooth_t smooth_type, 
     int ksize, 
     double sigma, 
@@ -595,32 +595,32 @@ image_t canny_spec(
     double high_thresh_ratio
 ) {
     
-    image_t smooth;
+    img_t smooth;
 
     switch(smooth_type){
         case SMH_MEDIAN:
-            smooth = median(source, ksize);
+            smooth = img_median(source, ksize);
             break;
         case SMH_MEAN:
-            smooth = mean(source, ksize);
+            smooth = img_mean(source, ksize);
             break;
         case SMH_GAUSSIAN:
         default:
-            smooth = gaussian(source, ksize, sigma);
+            smooth = img_gaussian(source, ksize, sigma);
             break;
     }
     
-    matrix_t sobel_x = sobel_x_kernel();
-    matrix_t sobel_y = sobel_y_kernel();
-    image_t gx = convolve(smooth, sobel_x);
-    image_t gy = convolve(smooth, sobel_y);
+    mat_t sobel_x = sobel_x_kernel();
+    mat_t sobel_y = sobel_y_kernel();
+    img_t gx = img_conv(smooth, sobel_x);
+    img_t gy = img_conv(smooth, sobel_y);
 
-    free_matrix(&sobel_x);
-    free_matrix(&sobel_y);
-    free_image(&smooth);
+    mat_free(&sobel_x);
+    mat_free(&sobel_y);
+    img_free(&smooth);
 
-    image_t magnitude = create_image(source.w, source.h, 1);
-    image_t direction = create_image(source.w, source.h, 1);
+    img_t magnitude = img_create(source.w, source.h, 1);
+    img_t direction = img_create(source.w, source.h, 1);
 
     double max_magnitude = 0.0f;
 
@@ -641,13 +641,13 @@ image_t canny_spec(
         }
     });
 
-    free_image(&gx);
-    free_image(&gy);
+    img_free(&gx);
+    img_free(&gy);
 
-    image_t nms = non_max_supression(magnitude, direction);
+    img_t nms = non_max_supression(magnitude, direction);
 
-    free_image(&magnitude);
-    free_image(&direction);
+    img_free(&magnitude);
+    img_free(&direction);
 
     double _high_thresh = 0.3 * max_magnitude;
     double _low_thresh = 0.4 * _high_thresh;
@@ -657,13 +657,13 @@ image_t canny_spec(
         _low_thresh = _high_thresh * low_thresh_ratio;
     }
 
-    image_t result = hysteresis_tracking(nms, _low_thresh, _high_thresh);
+    img_t result = hysteresis_tracking(nms, _low_thresh, _high_thresh);
 
-    free_image(&nms);
+    img_free(&nms);
 
     return result;
 }
 
-image_t canny(image_t source, double low_thresh_ratio, double high_thresh_ratio) {
-    return canny_spec(source, SMH_GAUSSIAN, 9, 3.0, low_thresh_ratio, high_thresh_ratio);
+img_t img_canny(img_t source, double low_thresh_ratio, double high_thresh_ratio) {
+    return img_canny_spec(source, SMH_GAUSSIAN, 9, 3.0, low_thresh_ratio, high_thresh_ratio);
 }

@@ -2,7 +2,7 @@
 
 int main(){
 
-    image_t image = img_load("samples/lenna.sample.png");
+    img_t image = img_load("samples/lenna.sample.png");
 
     FOREACH_PXL(image, {
         PXL_AT(image, x, y, c) += 50;

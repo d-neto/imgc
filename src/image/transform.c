@@ -1,11 +1,11 @@
 #include "imagec.h"
 
-image_t crop_rect(image_t image, rect_t bounds);
-image_t crop_polygon(image_t image, polygon_t bounds);
-image_t cut_rect(image_t image, rect_t bounds);
-image_t cut_polygon(image_t image, polygon_t bounds);
+img_t crop_rect(img_t image, rect_t bounds);
+img_t crop_polygon(img_t image, polygon_t bounds);
+img_t cut_rect(img_t image, rect_t bounds);
+img_t cut_polygon(img_t image, polygon_t bounds);
 
-image_t crop(image_t image, geometry_t geometry_bounds){
+img_t img_crop(img_t image, geometry_t geometry_bounds){
     if(geometry_bounds.type == G_RECT){
         rect_t r = geometry_bounds.rect;
         return crop_rect(image, r);
@@ -14,10 +14,10 @@ image_t crop(image_t image, geometry_t geometry_bounds){
         polygon_t p = geometry_bounds.polygon;
         return crop_polygon(image, p);
     }
-    return (image_t) {0};
+    return (img_t) {0};
 }
 
-image_t cut(image_t image, geometry_t geometry_bounds){
+img_t img_cut(img_t image, geometry_t geometry_bounds){
     if(geometry_bounds.type == G_RECT){
         rect_t r = geometry_bounds.rect;
         return cut_rect(image, r);
@@ -26,10 +26,10 @@ image_t cut(image_t image, geometry_t geometry_bounds){
         polygon_t p = geometry_bounds.polygon;
         return cut_polygon(image, p);
     }
-    return (image_t) {0};
+    return (img_t) {0};
 }
 
-image_t cut_rect(image_t image, rect_t bounds){
+img_t cut_rect(img_t image, rect_t bounds){
     int swap = 0;
 
     int x1, x2, y1, y2;
@@ -53,38 +53,40 @@ image_t cut_rect(image_t image, rect_t bounds){
     int h = y2-y1;
     int w = x2-x1;
 
-    image_t cropped = {
+    img_t cropped = {
         .h = h,
         .w = w,
         .channels = image.channels,
-        .data = NULL,
-        .bounds = boundaries(0, 0, w, h)
+        .bounds = boundaries(0, 0, w, h),
     };
-    cropped.data = ALLOC(sizeof(*cropped.data)*h*w*cropped.channels);
+    cropped.pixels = mat(h, w*cropped.channels);
 
-    size_t pos = 0;
+    int pos = 0;
     int tx = 0, ty = 0;
 
-    for(size_t i = 0; i < h; ++i){
+    for(int i = 0; i < h; ++i){
         ty = (y1 + i);
-        for(size_t j = 0; j < w; ++j){
+        for(int j = 0; j < w; ++j){
             tx = (x1 + j);
-            for(size_t c = 0; c < image.channels; ++c){
+            for(int c = 0; c < image.channels; ++c){
                 pos = (ty * image.w + tx) * image.channels + c;
                 if(pos > (image.w * image.h * image.channels)){
                     PXL_AT(cropped, j, i, c) = 0;
                 }
                 else {
-                    PXL_AT(cropped, j, i, c) = image.data[pos];
-                    image.data[pos] = VOID_PIXEL;
+                    PXL_AT(cropped, j, i, c) = image.pixels.data[pos];
+                    image.pixels.data[pos] = VOID_PIXEL;
                 }
             }
         }
     }
+
+    img_upd_view(&cropped);
+
     return cropped;
 }
 
-image_t crop_rect(image_t image, rect_t bounds){
+img_t crop_rect(img_t image, rect_t bounds){
     int swap = 0;
 
     int x1, x2, y1, y2;
@@ -113,35 +115,37 @@ image_t crop_rect(image_t image, rect_t bounds){
     int h = y2 - y1 + 1;
     int w = x2 - x1 + 1;
 
-    image_t cropped = {
+    img_t cropped = {
         .h = h,
         .w = w,
         .channels = image.channels,
-        .data = NULL,
         .bounds = boundaries(0, 0, w, h)
     };
-    cropped.data = ALLOC(sizeof(*cropped.data)*h*w*cropped.channels);
+    cropped.pixels = mat(h, w*cropped.channels);
 
-    size_t pos = 0;
+    int pos = 0;
     int tx = 0, ty = 0;
 
-    for(size_t i = 0; i < h; ++i){
+    for(int i = 0; i < h; ++i){
         ty = (y1 + i);
-        for(size_t j = 0; j < w; ++j){
+        for(int j = 0; j < w; ++j){
             tx = (x1 + j);
-            for(size_t c = 0; c < image.channels; ++c){
+            for(int c = 0; c < image.channels; ++c){
                 pos = (ty * image.w + tx) * image.channels + c;
                 if(pos >= (image.w * image.h * image.channels))
                     PXL_AT(cropped, j, i, c) = 0;
                 else
-                    PXL_AT(cropped, j, i, c) = image.data[pos];
+                    PXL_AT(cropped, j, i, c) = image.pixels.data[pos];
             }
         }
     }
+
+    img_upd_view(&cropped);
+
     return cropped;
 }
 
-image_t cut_polygon(image_t image, polygon_t bounds){
+img_t cut_polygon(img_t image, polygon_t bounds){
     int max_w = 0;
     int min_w = __INT_MAX__;
     int max_h = 0;
@@ -157,43 +161,46 @@ image_t cut_polygon(image_t image, polygon_t bounds){
     int h = max_h - min_h;
     int w = max_w - min_w;
 
-    image_t cropped = {
+    img_t cropped = {
         .h = h,
         .w = w,
         .channels = image.channels,
-        .data = NULL,
         .bounds = boundaries(0, 0, w, h)
     };
 
-    cropped.data = ALLOC(sizeof(*cropped.data)*max_w*max_h*cropped.channels);
-    size_t pos = 0;
+    cropped.pixels = mat(max_h * cropped.channels, max_w*cropped.channels);
+
+    int pos = 0;
     int tx = 0, ty = 0;
 
-    for(size_t i = 0; i < h; ++i){
+    for(int i = 0; i < h; ++i){
         ty = (min_h + i);
-        for(size_t j = 0; j < w; ++j){
+        for(int j = 0; j < w; ++j){
             tx = (min_w + j);
             if(!polygon_is_point_inside(bounds, vec2(tx, ty))){
-                for(size_t c = 0; c < image.channels; ++c) PXL_AT(cropped, j, i, c) = VOID_PIXEL;
+                for(int c = 0; c < image.channels; ++c) PXL_AT(cropped, j, i, c) = VOID_PIXEL;
                 if(image.channels == 4) PXL_AT(cropped, j, i, 3) = 0;
                 continue;
             }
-            for(size_t c = 0; c < image.channels; ++c){
+            for(int c = 0; c < image.channels; ++c){
                 pos = (ty * image.w + tx) * image.channels + c;
                 if(pos > (image.w * image.h * image.channels)){
                     PXL_AT(cropped, j, i, c) = 0;
                 }
                 else {
-                    PXL_AT(cropped, j, i, c) = image.data[pos];
-                    image.data[pos] = VOID_PIXEL;
+                    PXL_AT(cropped, j, i, c) = image.pixels.data[pos];
+                    image.pixels.data[pos] = VOID_PIXEL;
                 }
             }
         }
     }
+
+    img_upd_view(&cropped);
+
     return cropped;
 }
 
-image_t crop_polygon(image_t image, polygon_t bounds){
+img_t crop_polygon(img_t image, polygon_t bounds){
     int max_w = 0;
     int min_w = __INT_MAX__;
     int max_h = 0;
@@ -209,41 +216,43 @@ image_t crop_polygon(image_t image, polygon_t bounds){
     int h = max_h - min_h;
     int w = max_w - min_w;
 
-    image_t cropped = {
+    img_t cropped = {
         .h = h,
         .w = w,
         .channels = image.channels,
-        .data = NULL,
         .bounds = boundaries(0, 0, w, h)
     };
 
-    cropped.data = ALLOC(sizeof(*cropped.data)*max_w*max_h*cropped.channels);
-    size_t pos = 0;
+    cropped.pixels = mat(max_h, max_w*cropped.channels);
+    int pos = 0;
     int tx = 0, ty = 0;
 
-    for(size_t i = 0; i < h; ++i){
+    for(int i = 0; i < h; ++i){
         ty = (min_h + i);
-        for(size_t j = 0; j < w; ++j){
+        for(int j = 0; j < w; ++j){
             tx = (min_w + j);
             if(!polygon_is_point_inside(bounds, vec2(tx, ty))){
-                for(size_t c = 0; c < image.channels; ++c) PXL_AT(cropped, j, i, c) = VOID_PIXEL;
+                for(int c = 0; c < image.channels; ++c) PXL_AT(cropped, j, i, c) = VOID_PIXEL;
                 if(image.channels == 4) PXL_AT(cropped, j, i, 3) = 0;
                 continue;
             }
-            for(size_t c = 0; c < image.channels; ++c){
+            for(int c = 0; c < image.channels; ++c){
                 pos = (ty * image.w + tx) * image.channels + c;
                 if(pos > (image.w * image.h * image.channels))
                     PXL_AT(cropped, j, i, c) = 0;
                 else
-                    PXL_AT(cropped, j, i, c) = image.data[pos];
+                    PXL_AT(cropped, j, i, c) = image.pixels.data[pos];
             }
         }
     }
+
+    img_upd_view(&cropped);
+
     return cropped;
 }
 
-image_t resize(image_t src, int w, int h){
-    image_t image = create_image(w, h, src.channels);
+img_t img_resize(img_t src, int w, int h){
+    img_t image = img_create(w, h, src.channels);
 
     double wf = (double) src.w / (double) w;
     double hf = (double) src.h / (double) h;

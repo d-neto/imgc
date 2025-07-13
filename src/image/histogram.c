@@ -4,10 +4,10 @@
  * Get histogram data from grayscale image
  * Returns an array with 256 entries
  */
-int * histdata(image_t source){
+int * histdata(img_t source){
     assert(source.channels > 0);
 
-    image_t image = source;
+    img_t image = source;
     if(image.channels > 1) image = rgb2gray(image);
 
     int * histogram = ALLOC(256 * sizeof(*histogram));
@@ -32,7 +32,7 @@ int * histdata(image_t source){
  * ignoring zero values
  * Returns an array with 256 entries
  */
-int * histdata__ignore_zeros(image_t image){
+int * histdata__ignore_img_zeros(img_t image){
     assert(image.channels == 1);
     int * histogram = ALLOC(256 * sizeof(*histogram));
     for(int i = 0; i < 256; ++i) histogram[i] = 0.0;
@@ -125,7 +125,7 @@ static void show_using_GnuPlot(FILE *gnuplot, int * histogram){
     pclose(gnuplot);
 }
 
-void histdump__from_image(image_t image) {
+void histdump__from_image(img_t image) {
     double_arr frequencies = DOUBLE_ARR(256);
     for(int i = 0; i < frequencies.capacity; ++i) 
         frequencies.items[i] = 0.0;

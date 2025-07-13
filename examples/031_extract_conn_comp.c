@@ -2,9 +2,9 @@
 
 int main(){
 
-    image_t fig0916A = img_load("samples/Fig0916A.sample.png");
+    img_t fig0916A = img_load("samples/Fig0916A.sample.png");
 
-    extract_cc_t extraction = extract_cc(fig0916A);
+    extract_cc_t extraction = img_extract_cc(fig0916A);
 
     printf("Component Count: %d\n", extraction.count);
 
@@ -29,8 +29,8 @@ int main(){
 
     wait_until();
 
-    free_image(&fig0916A);
-    free_extraction(&extraction);
+    img_free(&fig0916A);
+    img_free_extraction(&extraction);
 
     shutdown_display();
 

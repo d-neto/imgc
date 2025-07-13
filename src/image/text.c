@@ -1,7 +1,7 @@
 #include "imagec.h"
 #include "font.h"
 
-void draw_text_spec(image_t source, const char* text, int x, int y, int point_size, hex_t color) {
+void draw_text_spec(img_t source, const char* text, int x, int y, int point_size, hex_t color) {
     if (point_size <= 0) return;
 
     double target_h = (point_size / 72.0) * 96;
@@ -85,7 +85,7 @@ void draw_text_spec(image_t source, const char* text, int x, int y, int point_si
     }
 }
 
-void draw_txt(image_t source, int x, int y, int size, hex_t color,  char * _fmt_text, ...){
+void draw_txt(img_t source, int x, int y, int size, hex_t color,  char * _fmt_text, ...){
     char text[256] = {0};
     va_list args;
     va_start(args, _fmt_text);

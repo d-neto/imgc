@@ -56,15 +56,15 @@ static Display * main_dpy;
 
 pthread_t ui_tid;
 
-void imgc_x11_img_show(image_t source, char * window_name);
+void imgc_x11_img_show(img_t source, char * window_name);
 void imgc_x11_wait_until();
 void imgc_x11_shutdown();
 
 static void start_ui_thread();
 static void * ui_thread(void *arg);
 static void send_command(ui_command_t cmd);
-static void imgc_x11_window_set_icon(image_t source, Display * dpy, Window win);
-static XImage * imgc_x11_img_to_XImage(image_t source, Display * dpy);
+static void imgc_x11_window_set_icon(img_t source, Display * dpy, Window win);
+static XImage * imgc_x11_img_to_XImage(img_t source, Display * dpy);
 static void destroy_wintask(Display * dpy, wintask_t * task);
 static void default_handle_img(Display * dpy, XEvent evt, wintask_t * task);
 void imgc_x11_reset_display();
@@ -99,6 +99,9 @@ static void start_ui_thread() {
 }
 
 static void * ui_thread(void *arg) {
+    
+    (void) arg;
+
     int x11_fd = ConnectionNumber(main_dpy);
     int command_fd = command_pipe_fd[0];
     fd_set fds;
@@ -204,7 +207,7 @@ static void send_command(ui_command_t cmd) {
     }
 }
 
-static void imgc_x11_window_set_icon(image_t source, Display * dpy, Window win){
+static void imgc_x11_window_set_icon(img_t source, Display * dpy, Window win){
 
     unsigned long * icon_data = ALLOC((2 + IMGC_W_ICON_SIZE * IMGC_W_ICON_SIZE) * sizeof(unsigned long));
 
@@ -214,7 +217,7 @@ static void imgc_x11_window_set_icon(image_t source, Display * dpy, Window win){
     icon_data[1] = IMGC_W_ICON_SIZE;
     unsigned long * icon_pixels = &icon_data[2];
 
-    image_t resized = resize(source, IMGC_W_ICON_SIZE, IMGC_W_ICON_SIZE);
+    img_t resized = img_resize(source, IMGC_W_ICON_SIZE, IMGC_W_ICON_SIZE);
 
     if(resized.channels == 1){
         int r = 0;
@@ -240,11 +243,11 @@ static void imgc_x11_window_set_icon(image_t source, Display * dpy, Window win){
     Atom cardinal = XInternAtom(dpy, "CARDINAL", False);
     XChangeProperty(dpy, win, net_wm_icon, cardinal, 32, PropModeReplace, (unsigned char *) icon_data, 2 + IMGC_W_ICON_SIZE * IMGC_W_ICON_SIZE);
     
-    free_image(&resized);
+    img_free(&resized);
     FREE(icon_data);
 }
 
-static XImage * imgc_x11_img_to_XImage(image_t source, Display * dpy){
+static XImage * imgc_x11_img_to_XImage(img_t source, Display * dpy){
     int screen = DefaultScreen(dpy);
     Visual *vis = DefaultVisual(dpy, screen);
     int depth = DefaultDepth(dpy, screen);
@@ -311,7 +314,7 @@ static void default_handle_img(Display * dpy, XEvent evt, wintask_t * task){
     }
 }
 
-void imgc_x11_img_show(image_t source, char * window_name){
+void imgc_x11_img_show(img_t source, char * window_name){
 
     pthread_mutex_lock(&img_show_request);
     show_count++;

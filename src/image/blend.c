@@ -1,17 +1,17 @@
 #include "imagec.h"
 
-static image_t create_greater_image_between(image_t im1, image_t im2);
+static img_t create_greater_image_between(img_t im1, img_t im2);
 
-image_t sum(image_t im1, image_t im2){
-    return sum_offset(im1, im2, 0, 0);
+img_t img_sum(img_t im1, img_t im2){
+    return img_sumoffs(im1, im2, 0, 0);
 }
 
-image_t sum_offset(image_t im1, image_t im2, int off_x, int off_y){
-    return sum_offset_a(im1, im2, off_x, off_y, 1);
+img_t img_sumoffs(img_t im1, img_t im2, int off_x, int off_y){
+    return img_sum__spec(im1, im2, off_x, off_y, 1);
 }
 
-image_t sum_offset_a(image_t im1, image_t im2, int off_x, int off_y, int ignore_alpha){
-    image_t new_image = create_greater_image_between(im1, im2);
+img_t img_sum__spec(img_t im1, img_t im2, int off_x, int off_y, int ignore_alpha){
+    img_t new_image = create_greater_image_between(im1, im2);
     double value = 0;
     int x2, y2;
     FOREACH_PXL(new_image, {
@@ -19,36 +19,43 @@ image_t sum_offset_a(image_t im1, image_t im2, int off_x, int off_y, int ignore_
         x2 = x - off_x;
         y2 = y - off_y;
         if(ignore_alpha && c == 3) PXL_AT(new_image, x, y, c) = 255;
-        if(c < im1.channels && (x < im1.w && y < im1.h)) {
-            if(PXL_AT(im1, x, y, c) != VOID_PIXEL)
-                value += PXL_AT(im1, x, y, c);
+        if((x < im1.w && y < im1.h)) {
+            if(PXL_AT(im1, x, y, c) != VOID_PIXEL){
+                if(c < im1.channels) value += PXL_AT(im1, x, y, c);
+                else value += PXL_AT(im1, x, y, 0);
+            }
         }
-        if((x2 >= 0) && (y2 >= 0) && c < im2.channels && (x2 < im2.w && y2 < im2.h)){
-            if(PXL_AT(im2, x2, y2, c) != VOID_PIXEL)
-                value += PXL_AT(im2, x2, y2, c);
+        if((x2 >= 0) && (y2 >= 0) && (x2 < im2.w && y2 < im2.h)){
+            if(PXL_AT(im2, x2, y2, c) != VOID_PIXEL){
+                if(c < im2.channels) value += PXL_AT(im2, x2, y2, c);
+                else value += PXL_AT(im2, x2, y2, 0);
+            }
         }
         PXL_AT(new_image, x, y, c) = value;
     });
     return new_image;
 }
 
-image_t sub(image_t im1, image_t im2){
-    return sub_offset(im1, im2, 0, 0);
+img_t img_sub(img_t im1, img_t im2){
+    return img_suboffs(im1, im2, 0, 0);
 }
 
-image_t sub_offset(image_t im1, image_t im2, int off_x, int off_y){
-    return sub_offset_a(im1, im2, off_x, off_y, 1);
+img_t img_suboffs(img_t im1, img_t im2, int off_x, int off_y){
+    return img_sub__spec(im1, im2, off_x, off_y, 1);
 }
 
-image_t sub_offset_a(image_t im1, image_t im2, int off_x, int off_y, int ignore_alpha){
-    image_t new_image = create_greater_image_between(im1, im2);
+img_t img_sub__spec(img_t im1, img_t im2, int off_x, int off_y, int ignore_alpha){
+    img_t new_image = create_greater_image_between(im1, im2);
     double value = 0;
     int x2, y2;
     FOREACH_PXL(new_image, {
         value = 0;
         x2 = x - off_x;
         y2 = y - off_y;
-        if(ignore_alpha && c == 3) PXL_AT(new_image, x, y, c) = 255;
+        if(ignore_alpha && c == 3) {
+            PXL_AT(new_image, x, y, c) = 255;
+            continue;
+        }
         if(c < im1.channels && (x < im1.w && y < im1.h)) {
             if(PXL_AT(im1, x, y, c) != VOID_PIXEL)
                 value += PXL_AT(im1, x, y, c);
@@ -62,29 +69,29 @@ image_t sub_offset_a(image_t im1, image_t im2, int off_x, int off_y, int ignore_
     return new_image;
 }
 
-image_t multiply_self(image_t src, int times){
+img_t img_multiply_self(img_t src, int times){
     if(times <= 1) return src;
-    image_t result = multiply(src, src);
-    image_t aux;
+    img_t result = img_multiply(src, src);
+    img_t aux;
     times -= 1;
     for(int i = 1; i < times; ++i){
-        aux = multiply(result, result);
-        free_image(&result);
+        aux = img_multiply(result, result);
+        img_free(&result);
         result = aux;
     }
     return result;
 }
 
-image_t multiply(image_t im1, image_t im2){
-    return multiply_offset(im1, im2, 0, 0);
+img_t img_multiply(img_t im1, img_t im2){
+    return img_multiplyoffs(im1, im2, 0, 0);
 }
 
-image_t multiply_offset(image_t im1, image_t im2, int off_x, int off_y){
-    return multiply_offset_a(im1, im2, off_x, off_y, 1);
+img_t img_multiplyoffs(img_t im1, img_t im2, int off_x, int off_y){
+    return img_multiply__spec(im1, im2, off_x, off_y, 1);
 }
 
-image_t multiply_offset_a(image_t im1, image_t im2, int off_x, int off_y, int ignore_alpha){
-    image_t new_image = create_greater_image_between(im1, im2);
+img_t img_multiply__spec(img_t im1, img_t im2, int off_x, int off_y, int ignore_alpha){
+    img_t new_image = create_greater_image_between(im1, im2);
     double value = 0;
     int x2, y2;
     FOREACH_PXL(new_image, {
@@ -105,16 +112,16 @@ image_t multiply_offset_a(image_t im1, image_t im2, int off_x, int off_y, int ig
     return new_image;
 }
 
-image_t blend(image_t im1, image_t im2, double b_alpha){
-    return blend_offset(im1, im2, b_alpha, 0, 0);
+img_t img_blend(img_t im1, img_t im2, double b_alpha){
+    return img_blendoffs(im1, im2, b_alpha, 0, 0);
 }
 
-image_t blend_offset(image_t im1, image_t im2, double b_alpha, int off_x, int off_y){
-    return blend_offset_a(im1, im2, b_alpha, off_x, off_y, 1);
+img_t img_blendoffs(img_t im1, img_t im2, double b_alpha, int off_x, int off_y){
+    return img_blend__spec(im1, im2, b_alpha, off_x, off_y, 1);
 }
 
-image_t blend_offset_a(image_t im1, image_t im2, double b_alpha, int off_x, int off_y, int ignore_alpha){
-    image_t new_image = create_greater_image_between(im1, im2);
+img_t img_blend__spec(img_t im1, img_t im2, double b_alpha, int off_x, int off_y, int ignore_alpha){
+    img_t new_image = create_greater_image_between(im1, im2);
     double v1 = 0, v2 = 0;
     int x2, y2;
     double alpha = 1 - b_alpha;
@@ -143,16 +150,16 @@ image_t blend_offset_a(image_t im1, image_t im2, double b_alpha, int off_x, int 
     return new_image;
 }
 
-image_t screen(image_t im1, image_t im2){
-    return screen_offset(im1, im2, 0, 0);
+img_t img_screen(img_t im1, img_t im2){
+    return img_screenoffs(im1, im2, 0, 0);
 }
 
-image_t screen_offset(image_t im1, image_t im2, int off_x, int off_y){
-    return screen_offset_a(im1, im2, off_x, off_y, 1);
+img_t img_screenoffs(img_t im1, img_t im2, int off_x, int off_y){
+    return img_screen__spec(im1, im2, off_x, off_y, 1);
 }
 
-image_t screen_offset_a(image_t im1, image_t im2, int off_x, int off_y, int ignore_alpha){
-    image_t new_image = create_greater_image_between(im1, im2);
+img_t img_screen__spec(img_t im1, img_t im2, int off_x, int off_y, int ignore_alpha){
+    img_t new_image = create_greater_image_between(im1, im2);
     double v1 = 0, v2 = 0;
     int x2, y2;
     FOREACH_PXL(new_image, {
@@ -176,16 +183,16 @@ image_t screen_offset_a(image_t im1, image_t im2, int off_x, int off_y, int igno
     return new_image;
 }
 
-image_t mask(image_t src, image_t mask_src){
-    return mask_offset(src, mask_src, 0, 0);
+img_t img_mask(img_t src, img_t mask_src){
+    return img_maskoffs(src, mask_src, 0, 0);
 }
 
-image_t mask_offset(image_t src, image_t mask_src, int off_x, int off_y){
-    return mask_offset_a(src, mask_src, off_x, off_y, 1);
+img_t img_maskoffs(img_t src, img_t mask_src, int off_x, int off_y){
+    return img_mask__spec(src, mask_src, off_x, off_y, 1);
 }
 
-image_t mask_offset_a(image_t src, image_t mask_src, int off_x, int off_y, int ignore_alpha){
-    image_t new_image = clone(src);
+img_t img_mask__spec(img_t src, img_t mask_src, int off_x, int off_y, int ignore_alpha){
+    img_t new_image = img_clone(src);
     int inside_mask;
     int x2, y2;
     FOREACH_PXL(new_image, {
@@ -202,16 +209,16 @@ image_t mask_offset_a(image_t src, image_t mask_src, int off_x, int off_y, int i
     return new_image;
 }
 
-image_t and(image_t im1, image_t im2){
-    return and_offset(im1, im2, 0, 0);
+img_t img_and(img_t im1, img_t im2){
+    return img_andoffs(im1, im2, 0, 0);
 }
 
-image_t and_offset(image_t im1, image_t im2, int off_x, int off_y){
-    return and_offset_a(im1, im2, off_x, off_y, 1);
+img_t img_andoffs(img_t im1, img_t im2, int off_x, int off_y){
+    return img_and__spec(im1, im2, off_x, off_y, 1);
 }
 
-image_t and_offset_a(image_t im1, image_t im2, int off_x, int off_y, int ignore_alpha){
-    image_t new_image = create_greater_image_between(im1, im2);
+img_t img_and__spec(img_t im1, img_t im2, int off_x, int off_y, int ignore_alpha){
+    img_t new_image = create_greater_image_between(im1, im2);
     unsigned char v1 = 0, v2 = 0;
     int x2, y2;
     FOREACH_PXL(new_image, {
@@ -232,16 +239,16 @@ image_t and_offset_a(image_t im1, image_t im2, int off_x, int off_y, int ignore_
     return new_image;
 }
 
-image_t xor(image_t im1, image_t im2){
-    return xor_offset(im1, im2, 0, 0);
+img_t img_xor(img_t im1, img_t im2){
+    return img_xoroffs(im1, im2, 0, 0);
 }
 
-image_t xor_offset(image_t im1, image_t im2, int off_x, int off_y){
-    return xor_offset_a(im1, im2, off_x, off_y, 1);
+img_t img_xoroffs(img_t im1, img_t im2, int off_x, int off_y){
+    return img_xor__spec(im1, im2, off_x, off_y, 1);
 }
 
-image_t xor_offset_a(image_t im1, image_t im2, int off_x, int off_y, int ignore_alpha){
-    image_t new_image = create_greater_image_between(im1, im2);
+img_t img_xor__spec(img_t im1, img_t im2, int off_x, int off_y, int ignore_alpha){
+    img_t new_image = create_greater_image_between(im1, im2);
     unsigned char v1 = 0, v2 = 0;
     int x2, y2;
     FOREACH_PXL(new_image, {
@@ -262,7 +269,7 @@ image_t xor_offset_a(image_t im1, image_t im2, int off_x, int off_y, int ignore_
     return new_image;
 }
 
-static image_t create_greater_image_between(image_t im1, image_t im2){
+static img_t create_greater_image_between(img_t im1, img_t im2){
     int max_w, min_w, min_h, max_h, max_ch;
     max_w = im1.w;
     max_h = im1.h;
@@ -280,5 +287,5 @@ static image_t create_greater_image_between(image_t im1, image_t im2){
 
     if(im2.h < min_h) min_h = im2.h;
 
-    return create_image(max_w, max_h, max_ch);
+    return img_create(max_w, max_h, max_ch);
 }

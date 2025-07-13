@@ -1,6 +1,6 @@
 #include "imagec.h"
 
-image_t convolve(image_t image, matrix_t kernel){
+img_t img_conv(img_t image, mat_t kernel){
     
     int kxstart = -(kernel.c/2);
     int kystart = -(kernel.r/2);
@@ -16,12 +16,12 @@ image_t convolve(image_t image, matrix_t kernel){
     int y0 = image.bounds.y1;
     int w = image.bounds.x2 - x0;
     int h = image.bounds.y2 - y0;
-    image_t new_image = create_image(w, h, image.channels);
+    img_t new_image = img_create(w, h, image.channels);
 
-    for(size_t y = 0; y < new_image.h; ++y){
-        for(size_t x = 0; x < new_image.w; ++x){
+    for(int y = 0; y < new_image.h; ++y){
+        for(int x = 0; x < new_image.w; ++x){
 
-            for(size_t c = 0; c < channels; ++c){
+            for(int c = 0; c < channels; ++c){
 
                 // Ignore alpha channel
                 if(PXL_AT(new_image, x, y, c) == VOID_PIXEL) continue;
@@ -63,7 +63,12 @@ image_t convolve(image_t image, matrix_t kernel){
     return new_image;
 }
 
-image_t median(image_t image, int ksize){
+static int qs_comp_double(const void *a, const void *b){
+    double diff = (*(double *)a) - (*(double *)b);
+    return (diff > 0) - (diff < 0);
+}
+
+img_t img_median(img_t image, int ksize){
     assert(ksize%2 != 0);
 
     int kend = ksize/2;
@@ -72,11 +77,10 @@ image_t median(image_t image, int ksize){
     int middle = (ksize*ksize)/2;
     double_arr array = DOUBLE_ARR(ksize*ksize+1);
     memset(array.items, 0, array.capacity * sizeof(*array.items));
-    double aux = 0;
     
     int w = image.bounds.x2 - image.bounds.x1;
     int h = image.bounds.y2 - image.bounds.y1;
-    image_t new_image = create_image(w, h, image.channels);
+    img_t new_image = img_create(w, h, image.channels);
 
     int tx = 0, ty = 0;
     int off_x = image.bounds.x1;
@@ -93,36 +97,28 @@ image_t median(image_t image, int ksize){
                 APPEND(array, PXL_AT(image, tx, ty, c));
             }
         }
-        for(int k = 0; k < array.count; ++k){
-            for(int l = 0; l < array.count-1-k; ++l){
-                if(VGET(array, l) > VGET(array, l+1)){
-                    aux = VGET(array, l);
-                    VGET(array, l) = VGET(array, l+1);
-                    VGET(array, l+1) = aux;
-                }
-            }
-        }
+        qsort(array.items, array.count, sizeof(array.items[0]), qs_comp_double);
         PXL_AT(new_image, x, y, c) = VGET(array, middle);
         array.count = 0;
     });
     return new_image;
 }
 
-image_t mean(image_t source, int ksize){
-    return convolve(source, mean_kernel(ksize));
+img_t img_mean(img_t source, int ksize){
+    return img_conv(source, mean_kernel(ksize));
 }
 
-image_t gaussian(image_t source, int ksize, double sigma){
-    matrix_t kernel = gaussian_kernel(ksize, sigma);
-    image_t result = convolve(source, kernel);
-    free_matrix(&kernel);
+img_t img_gaussian(img_t source, int ksize, double sigma){
+    mat_t kernel = gaussian_kernel(ksize, sigma);
+    img_t result = img_conv(source, kernel);
+    mat_free(&kernel);
     return result;
 }
 
-image_t laplacian(image_t image) {
-    image_t lapl_image = zeros(image.w, image.h, image.channels);
+img_t img_laplacian(img_t image) {
+    img_t lapl_image = img_zeros(image.w, image.h, image.channels);
 
-    matrix_t kernel = laplacian_kernel();
+    mat_t kernel = laplacian_kernel();
     int kxstart = -(kernel.c / 2);
     int kystart = -(kernel.r / 2);
     int kxend = (kernel.c / 2);
@@ -130,9 +126,9 @@ image_t laplacian(image_t image) {
 
     double value = 0.0;
     int py, px;
-    for (size_t y = 0; y < image.h; ++y) {
-        for (size_t x = 0; x < image.w; ++x) {
-            for (size_t c = 0; c < image.channels; ++c) {
+    for (int y = 0; y < image.h; ++y) {
+        for (int x = 0; x < image.w; ++x) {
+            for (int c = 0; c < image.channels; ++c) {
                 if (c == 3) {
                     PXL_AT(lapl_image, x, y, c) = PXL_AT(image, x, y, c);
                     continue;
@@ -160,12 +156,12 @@ image_t laplacian(image_t image) {
     return lapl_image;
 }
 
-image_t zero_crossing(image_t laplacian_img, double threshold) {
-    image_t output = zeros(laplacian_img.w, laplacian_img.h, laplacian_img.channels);
+img_t img_zr_crossing(img_t laplacian_img, double threshold) {
+    img_t output = img_zeros(laplacian_img.w, laplacian_img.h, laplacian_img.channels);
 
-    for (size_t y = 1; y < laplacian_img.h - 1; ++y) {
-        for (size_t x = 1; x < laplacian_img.w - 1; ++x) {
-            for (size_t c = 0; c < laplacian_img.channels; ++c) {
+    for (int y = 1; y < laplacian_img.h - 1; ++y) {
+        for (int x = 1; x < laplacian_img.w - 1; ++x) {
+            for (int c = 0; c < laplacian_img.channels; ++c) {
                 if (c == 3) {
                     PXL_AT(output, x, y, c) = PXL_AT(laplacian_img, x, y, c);
                     continue;
@@ -195,11 +191,11 @@ image_t zero_crossing(image_t laplacian_img, double threshold) {
     return output;
 }
 
-image_t laplacian_mapped(image_t image) {
-    image_t new_image = laplacian(image);
-    for (size_t y = 0; y < new_image.h; ++y) {
-        for (size_t x = 0; x < new_image.w; ++x) {
-            for (size_t c = 0; c < new_image.channels; ++c) {
+img_t img_laplac_mapped(img_t image) {
+    img_t new_image = img_laplacian(image);
+    for (int y = 0; y < new_image.h; ++y) {
+        for (int x = 0; x < new_image.w; ++x) {
+            for (int c = 0; c < new_image.channels; ++c) {
                 if (c == 3) continue;
                 double value = PXL_AT(new_image, x, y, c) + 128.0;
                 PXL_AT(new_image, x, y, c) = value;
@@ -209,13 +205,13 @@ image_t laplacian_mapped(image_t image) {
     return new_image;
 }
 
-image_t sobel(image_t image) {
-    image_t new_image = clone(image);
-    image_t sobel_x = convolve(image, sobel_x_kernel());
-    image_t sobel_y = convolve(image, sobel_y_kernel());
+img_t img_sobel(img_t image) {
+    img_t new_image = img_clone(image);
+    img_t sobel_x = img_conv(image, sobel_x_kernel());
+    img_t sobel_y = img_conv(image, sobel_y_kernel());
     double gx, gy, magnitude;
-    for (size_t y = 0; y < new_image.h; ++y) {
-        for (size_t x = 0; x < new_image.w; ++x) {
+    for (int y = 0; y < new_image.h; ++y) {
+        for (int x = 0; x < new_image.w; ++x) {
             for (int c = 0; c < image.channels; ++c) {
                 // Ignore alpha channel
                 if(PXL_AT(new_image, x, y, c) == VOID_PIXEL) continue;
@@ -233,12 +229,12 @@ image_t sobel(image_t image) {
     return new_image;
 }
 
-image_t sobel_x5(image_t image) {
-    image_t new_image = clone(image);
-    image_t sobel_x = convolve(image, sobel_x_kernel_x5());
-    image_t sobel_y = convolve(image, sobel_y_kernel_x5());
-    for (size_t y = 0; y < new_image.h; ++y) {
-        for (size_t x = 0; x < new_image.w; ++x) {
+img_t img_sobel_x5(img_t image) {
+    img_t new_image = img_clone(image);
+    img_t sobel_x = img_conv(image, sobel_x_kernel_x5());
+    img_t sobel_y = img_conv(image, sobel_y_kernel_x5());
+    for (int y = 0; y < new_image.h; ++y) {
+        for (int x = 0; x < new_image.w; ++x) {
             for (int c = 0; c < image.channels; ++c) {
 
                 if(PXL_AT(new_image, x, y, c) == VOID_PIXEL) continue;
@@ -261,25 +257,26 @@ image_t sobel_x5(image_t image) {
     return new_image;
 }
 
-image_t highboost(image_t input, double intensity){
-    return highboost__spec(input, intensity, SMH_GAUSSIAN, 5, 1.0);
+img_t img_hboost(img_t input, double intensity){
+    return img_hboost__spec(input, intensity, SMH_GAUSSIAN, 5, 1.0);
 }
 
-image_t highboost__spec(image_t input, double intensity, smooth_t smooth_type, int ksize, double g_sigma){
-    image_t smooth;
+img_t img_hboost__spec(img_t input, double intensity, smooth_t smooth_type, int ksize, double g_sigma){
+    img_t smooth;
     switch(smooth_type){
         default:
         case SMH_GAUSSIAN:
-            smooth = gaussian(input, ksize, g_sigma);
+            smooth = img_gaussian(input, ksize, g_sigma);
             break;
         case SMH_MEAN:
-            smooth = mean(input, ksize);
+            smooth = img_mean(input, ksize);
+            break;
         case SMH_MEDIAN:
-            smooth = median(input, ksize);
+            smooth = img_median(input, ksize);
             break;
     }
-    image_t sub_result = sub(input, smooth);
-    image_t result = clone(input);
+    img_t sub_result = img_sub(input, smooth);
+    img_t result = img_clone(input);
     FOREACH_PXL(result, {
         PXL_AT(result, x, y, c) += (intensity * PXL_AT(sub_result, x, y, c));
     });

@@ -2,11 +2,11 @@
 
 #define MAX_WIN_NAME 512
 
-extern void imgc_x11_img_show(image_t source, char * window_name);
+extern void imgc_x11_img_show(img_t source, char * window_name);
 extern void imgc_x11_wait_until();
 extern void imgc_x11_shutdown();
 
-void img_show(image_t source, char * _win_name, ...){
+void img_show(img_t source, char * _win_name, ...){
     char window_name[MAX_WIN_NAME] = {0};
     va_list args;
     va_start(args, _win_name);

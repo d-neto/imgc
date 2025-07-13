@@ -2,7 +2,7 @@
 
 int main(){
 
-    image_t image = create_image(256, 256, 1);
+    img_t image = img_create(256, 256, 1);
 
     int r2 = 64*64;
 
@@ -19,7 +19,7 @@ int main(){
     img_show(image, "Circle");
     wait_until();
 
-    free_image(&image);
+    img_free(&image);
 
     shutdown_display();
 

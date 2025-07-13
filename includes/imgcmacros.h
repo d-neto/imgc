@@ -1,8 +1,9 @@
 #ifndef __IMGC_MACROS_H__
 #define __IMGC_MACROS_H__
 
-#define AT(image, x, y) ((image).data+(((image).w * (y) + (x)) * (image).channels))
-#define PXL_AT(image, x, y, c) (image).data[((image).w * (y) + (x)) * (image).channels + (c)]
+#define AT(image, x, y) ((image).pixels.data+(((image).w * (y) + (x)) * (image).channels))
+#define PXL_AT(image, x, y, c) (image).pixels.data[((image).w * (y) + (x)) * (image).channels + (c)]
+#define LIST_AT(list, x, y) (list).data[((list).w * (y) + (x))]
 #define CLAMP(x, min, max) ((x) < (min) ? (min) : ((x) > (max) ? (max) : (x)))
 
 /**
@@ -40,7 +41,7 @@
 } while(0)
 
 #define TRANSFORM(image, fn) ({ \
-    image_t ___img = (image); \
+    img_t ___img = (image); \
     int channels = ___img.channels; \
     double pixel = 0; \
     for(int y = 0; y < ___img.h; ++y){ \

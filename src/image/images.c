@@ -45,23 +45,51 @@ pixel_t ** data_to_pixel(int w, int h, void * data, int channels){
     return pixels;
 }
 
-image_t create_image(int w, int h, int ch){
-    image_t image = {
+img_t img_create(int w, int h, int ch){
+    img_t image = {
         .h = h,
         .w = w,
         .channels = ch,
         .bounds = boundaries(0, 0, w, h)
     };
-    image.data = ALLOC(sizeof(*image.data)*image.w*image.h*image.channels);
-    assert(image.data);
+    image.pixels = mat(image.h, image.w * image.channels);
+    assert(image.pixels.data);
 
     for(int i = 0; i < image.w*image.h*image.channels; ++i)
-        image.data[i] = 0;
+        image.pixels.data[i] = 0;
+
+    img_upd_view(&image);
 
     return image;
 }
 
-image_t img_load(char *_fmt_filename, ...){
+void img_upd_view(img_t * source){
+    if(source == NULL) return;
+    switch(source->channels){
+        case 1:
+            source->r = mat_slice(source->pixels, source->h, source->w, 0, source->channels);
+            source->g = mat_slice(source->pixels, source->h, source->w, 0, source->channels);
+            source->b = mat_slice(source->pixels, source->h, source->w, 0, source->channels);
+            break;
+        case 2:
+            source->r = mat_slice(source->pixels, source->h, source->w, 0, source->channels);
+            source->g = mat_slice(source->pixels, source->h, source->w, 1, source->channels);
+            source->b = mat_slice(source->pixels, source->h, source->w, 0, source->channels);
+            break;
+        case 3:
+            source->r = mat_slice(source->pixels, source->h, source->w, 0, source->channels);
+            source->g = mat_slice(source->pixels, source->h, source->w, 1, source->channels);
+            source->b = mat_slice(source->pixels, source->h, source->w, 2, source->channels);
+            break;
+        case 4:
+            source->r = mat_slice(source->pixels, source->h, source->w, 0, source->channels);
+            source->g = mat_slice(source->pixels, source->h, source->w, 1, source->channels);
+            source->b = mat_slice(source->pixels, source->h, source->w, 2, source->channels);
+            break;
+    }
+}
+
+img_t img_load(char *_fmt_filename, ...){
 
     char filename[256] = {0};
     va_list args;
@@ -69,7 +97,7 @@ image_t img_load(char *_fmt_filename, ...){
     vsnprintf(filename, sizeof(filename), _fmt_filename, args);
     va_end(args);
 
-    image_t image = {0};
+    img_t image = {0};
     void * data = stbi_load(filename, &image.w, &image.h, &image.channels, 0);
 
     if(!data){
@@ -77,24 +105,26 @@ image_t img_load(char *_fmt_filename, ...){
         exit(-1);
     }
 
-    image.data = ALLOC(sizeof(*image.data)*image.w*image.h*image.channels);
-    assert(image.data);
+    image.pixels = mat(image.w * image.channels, image.h * image.channels);
+    assert(image.pixels.data);
 
     int size = image.w*image.h*image.channels;
     unsigned char * value;
     for(int i = 0; i < size; ++i){
         value = data+i;
-        image.data[i] = *value;
+        image.pixels.data[i] = *value;
     }
     FREE(data);
 
     image.bounds = boundaries(0, 0, image.w, image.h);
     image._slice = 0;
 
+    img_upd_view(&image);
+
     return image;
 }
 
-void img_write(image_t image, char *_fmt_filename, ...){
+void img_write(img_t image, char *_fmt_filename, ...){
 
     char filename[256] = {0};
     va_list args;
@@ -108,7 +138,7 @@ void img_write(image_t image, char *_fmt_filename, ...){
 
     long double value = 0;
     for(int i = 0; i < size; ++i){
-        value = image.data[i];
+        value = image.pixels.data[i];
         if(value > 255) value = 255;
         if(value < 0) value = 0;
         data[i] = value;
@@ -117,47 +147,50 @@ void img_write(image_t image, char *_fmt_filename, ...){
     FREE(data);
 }
 
-void free_image(image_t * image){
+void img_free(img_t * image){
     image->h = 0;
     image->w = 0;
     image->channels = 0;
-    if(image->data) FREE(image->data);
-    image->data = NULL;
+    if(image->pixels.data) FREE(image->pixels.data);
+    image->pixels.data = NULL;
 }
 
-image_t from_bounds(image_t source){
+img_t from_bounds(img_t source){
     int w = source.bounds.x2 - source.bounds.x1;
     int h = source.bounds.y2 - source.bounds.y1;
-    image_t new_image = create_image(w, h, source.channels);
+    img_t new_image = img_create(w, h, source.channels);
     return new_image;
 }
 
-image_t clone(image_t source){
-    image_t new_image = {
+img_t img_clone(img_t source){
+    img_t new_image = {
         .channels = source.channels,
         .h = source.h,
         .w = source.w,
-        .data = ALLOC(sizeof(*source.data)*source.w*source.h*source.channels),
-        .bounds = source.bounds
+        .pixels = mat(source.h, source.w * source.channels),
+        .bounds = source.bounds,
+        ._slice = source._slice,
     };
-    assert(new_image.data);
+    assert(new_image.pixels.data);
     int size = source.w*source.h*source.channels;
-    for(int i = 0; i < size; ++i) new_image.data[i] = source.data[i];
+    for(int i = 0; i < size; ++i) new_image.pixels.data[i] = source.pixels.data[i];
+
+    img_upd_view(&new_image);
+
     return new_image;
 }
 
-image_t rgb2gray(image_t image){
-    if(image.channels < 3) return (image_t){0};
-    image_t new_image = {
+img_t rgb2gray(img_t image){
+    if(image.channels < 3) return (img_t){0};
+    img_t new_image = {
         .h = image.h,
         .w = image.w,
-        .data = NULL,
         .channels = 1,
         .bounds = image.bounds
     };
 
-    new_image.data = ALLOC(sizeof(*new_image.data)*new_image.h*new_image.w);
-    assert(new_image.data);
+    new_image.pixels = mat(new_image.h, new_image.w);
+    assert(new_image.pixels.data);
 
     FOREACH_PXL(new_image, {
         if(PXL_AT(image, x, y, c) == VOID_PIXEL){
@@ -176,16 +209,18 @@ image_t rgb2gray(image_t image){
     return new_image;
 }
 
-void upgrade(image_t * image, int channels){
+void img_upgrade(img_t * image, int channels){
     if(channels <= image->channels) return;
-    image_t clonned = clone(*image);
+    img_t clonned = img_clone(*image);
 
     image->w = clonned.w;
     image->h = clonned.h;
     image->channels = channels;
-    image->data = ALLOC(sizeof(*image->data)*clonned.h*clonned.w*channels);
+
+    image->pixels = mat(clonned.h, clonned.w * channels);
+
     image->bounds = clonned.bounds;
-    assert(image->data);
+    assert(image->pixels.data);
 
     FOREACH_PXL(*image, {
         if(c < clonned.channels)
@@ -194,11 +229,11 @@ void upgrade(image_t * image, int channels){
             PXL_AT(*image, x, y, c) = 0;
     });
 
-    free_image(&clonned);
+    img_free(&clonned);
 }
 
-image_t paste(image_t src, image_t dest, int x_offset, int y_offset){
-    if(dest.channels < src.channels) upgrade(&dest, src.channels);
+img_t img_paste(img_t src, img_t dest, int x_offset, int y_offset){
+    if(dest.channels < src.channels) img_upgrade(&dest, src.channels);
 
     int tx = 0, ty = 0;
 
@@ -221,8 +256,8 @@ image_t paste(image_t src, image_t dest, int x_offset, int y_offset){
     return dest;
 }
 
-image_t normalize_nonzero_pixels(image_t input) {
-    image_t output = clone(input);
+img_t img_norm_nonzr(img_t input) {
+    img_t output = img_clone(input);
     double min = 1e9, max = -1e9;
     for (int y = 0; y < input.h; ++y) {
         for (int x = 0; x < input.w; ++x) {
@@ -248,24 +283,25 @@ image_t normalize_nonzero_pixels(image_t input) {
     return output;
 }
 
-image_t im2double(image_t image){
-    return TRANSFORM(clone(image), { pixel = pixel/255.0 });
+img_t img_double(img_t image){
+    img_t source = TRANSFORM(img_clone(image), { pixel = pixel/255.0 });
+    return source;
 }
 
-image_t with_all(double value, int w, int h, int channels){
-    image_t i = create_image(w, h, channels);
+img_t with_all(double value, int w, int h, int channels){
+    img_t i = img_create(w, h, channels);
     FOREACH_PXL(i, {
         PXL_AT(i, x, y, c) = value;
     });
     return i;
 }
 
-image_t zeros(int w, int h, int channels){
+img_t img_zeros(int w, int h, int channels){
     return with_all(0, w, h, channels);
 }
 
-image_t fill_all(image_t src, double value){
-    image_t new_image = clone(src);
+img_t fill_all(img_t src, double value){
+    img_t new_image = img_clone(src);
     FOREACH_PXL(new_image, {
         if(PXL_AT(new_image, x, y, c) != VOID_PIXEL)
             PXL_AT(new_image, x, y, c) = value;
@@ -273,8 +309,8 @@ image_t fill_all(image_t src, double value){
     return new_image;
 }
 
-image_t fill(image_t src, int x, int y, double value){
-    image_t new_image = clone(src);
+img_t fill(img_t src, int x, int y, double value){
+    img_t new_image = img_clone(src);
     char * visited = ALLOC(new_image.w * new_image.h * sizeof(*visited));
     memset(visited, 0, new_image.w * new_image.h);
 
@@ -320,8 +356,8 @@ image_t fill(image_t src, int x, int y, double value){
 }
 
 
-image_t flood_fill(image_t src, int x, int y, hex_t color){
-    image_t new_image = clone(src);
+img_t img_floodfl(img_t src, int x, int y, hex_t color){
+    img_t new_image = img_clone(src);
     char * visited = ALLOC(new_image.w * new_image.h * sizeof(*visited));
     memset(visited, 0, new_image.w * new_image.h);
 

@@ -1,11 +1,11 @@
 #include "imagec.h"
 
-image_t erode(image_t source, matrix_t structure){
+img_t img_erode_bin(img_t source, mat_t structure){
     
     int center_x = structure.c/2;
     int center_y = structure.r/2;
 
-    image_t result = clone(source);
+    img_t result = img_clone(source);
 
     int tx, ty;
     int keep_pixel;
@@ -37,12 +37,13 @@ image_t erode(image_t source, matrix_t structure){
     return result;
 }
 
-image_t dilate(image_t source, matrix_t structure){
+
+img_t img_dilate_bin(img_t source, mat_t structure){
     
     int center_x = structure.c/2;
     int center_y = structure.r/2;
 
-    image_t result = clone(source);
+    img_t result = img_clone(source);
 
     int tx, ty;
     int add_pixel;
@@ -74,20 +75,113 @@ image_t dilate(image_t source, matrix_t structure){
     return result;
 }
 
-image_t opening(image_t source, matrix_t structure){
-    return dilate(erode(source, structure), structure);
+img_t img_erode(img_t source, mat_t structure){
+    
+    int center_x = structure.c/2;
+    int center_y = structure.r/2;
+
+    int w = source.bounds.x2 - source.bounds.x1;
+    int h = source.bounds.y2 - source.bounds.y1;
+    img_t result = img_create(w, h, source.channels);
+
+    int tx, ty;
+    int mtx_value;
+
+    int pxl_value;
+    int min_pxl;
+
+    int off_x = source.bounds.x1;
+    int off_y = source.bounds.y1;
+
+    FOREACH_PXL(source, {
+        min_pxl = __INT_MAX__;
+        if(c == 3){
+            PXL_AT(result, x - off_x, y - off_y, c) = PXL_AT(source, x - off_x, y - off_y, c);
+            continue;
+        }
+        for(int i = 0; i < structure.r; ++i){
+            for(int j = 0; j < structure.c; ++j){
+                tx = x + j - center_x;
+                ty = y + i - center_y;
+                if(tx < 0 || tx >= source.w || ty < 0 || ty >= source.h) continue;
+
+                mtx_value = MAT_AT(structure, i, j);
+                pxl_value = PXL_AT(source, tx, ty, c);
+                if(mtx_value && pxl_value < min_pxl) min_pxl = pxl_value;
+                if(min_pxl <= 0) break;
+            }
+        }
+        
+        PXL_AT(result, x - off_x, y - off_y, c) = min_pxl;
+    });
+
+    return result;
 }
 
-image_t closing(image_t source, matrix_t structure){
-    return erode(dilate(source, structure), structure);
+img_t img_dilate(img_t source, mat_t structure){
+    
+    int center_x = structure.c/2;
+    int center_y = structure.r/2;
+
+    int w = source.bounds.x2 - source.bounds.x1;
+    int h = source.bounds.y2 - source.bounds.y1;
+    img_t result = img_create(w, h, source.channels);
+
+    int tx, ty;
+
+    int max_pxl;
+    int mtx_value;
+    int pxl_value;
+
+    int off_x = source.bounds.x1;
+    int off_y = source.bounds.y1;
+
+    FOREACH_PXL(source, {
+        max_pxl = 0;
+        if(c == 3){
+            PXL_AT(result, x - off_x, y - off_y, c) = PXL_AT(source, x - off_x, y - off_y, c);
+            continue;
+        }
+        for(int i = 0; i < structure.r; ++i){
+            for(int j = 0; j < structure.c; ++j){
+                tx = x + j - center_x;
+                ty = y + i - center_y;
+
+                if(tx < 0 || tx >= source.w || ty < 0 || ty >= source.h) continue;
+
+                mtx_value = MAT_AT(structure, i, j);
+                pxl_value = PXL_AT(source, tx, ty, c);
+                if(mtx_value && pxl_value > max_pxl) max_pxl = pxl_value;
+                if(max_pxl >= 255) break;
+            }
+        }
+        
+        PXL_AT(result, x - off_x, y - off_y, c) = max_pxl;
+    });
+
+    return result;
 }
 
-image_t extract_frontier_spec(image_t source, matrix_t structure){
-    return sub(source, erode(source, structure));
+img_t img_open(img_t source, mat_t structure){
+    img_t erosion = img_erode(source, structure);
+    img_t result = img_dilate(erosion, structure);
+    img_free(&erosion);
+    return result;
 }
 
-image_t extract_frontier(image_t source){
-    matrix_t structure = MAT((3, 3), 
+img_t img_close(img_t source, mat_t structure){
+    img_t dilatation = img_dilate(source, structure);
+    img_t result = img_erode(dilatation, structure);
+    img_free(&dilatation);
+    return result;
+}
+
+img_t extract_frontier_spec(img_t source, mat_t structure){
+    return img_sub(source, img_erode(source, structure));
+}
+
+img_t extract_frontier(img_t source){
+    mat_t structure = MAT(3, 3, 
         1, 1, 1,
         1, 1, 1,
         1, 1, 1
@@ -95,8 +189,8 @@ image_t extract_frontier(image_t source){
     return extract_frontier_spec(source, structure);
 }
 
-image_t bin_inverse(image_t source){
-    image_t result = clone(source);
+img_t bin_inverse(img_t source){
+    img_t result = img_clone(source);
     FOREACH_PXL(result, {
         int pxl = PXL_AT(result, x, y, c);
         PXL_AT(result, x, y, c) = pxl > 0 ? 0 : 255;
@@ -104,7 +198,7 @@ image_t bin_inverse(image_t source){
     return result;
 }
 
-int find_background_seed(image_t image, int *x_out, int *y_out) {
+int find_background_seed(img_t image, int *x_out, int *y_out) {
     int width = image.w;
     int height = image.h;
 
@@ -137,15 +231,15 @@ int find_background_seed(image_t image, int *x_out, int *y_out) {
     return 0;
 }
 
-image_t fill_holes(image_t source){
+img_t img_fillholes(img_t source){
     int x = 1, y = 1;
     find_background_seed(source, &x, &y);
 
-    image_t inv = bin_inverse(source);
+    img_t inv = bin_inverse(source);
 
-    image_t filled = flood_fill(inv, x, y, 0x0);
+    img_t filled = img_floodfl(inv, x, y, 0x0);
 
-    return sum(source, filled);
+    return img_sum(source, filled);
 }
 
 typedef struct extracted_pxl {
@@ -167,7 +261,7 @@ typedef struct pixel_list {
     extrpxl_t * data;
 } pixel_list_t;
 
-extract_cc_t extract_cc(image_t source){
+extract_cc_t img_extract_cc(img_t source){
     extract_cc_t extraction = {
         .count = 0,
         .capacity = 0,
@@ -182,11 +276,17 @@ extract_cc_t extract_cc(image_t source){
         .data = ALLOC(sizeof(*pxl_list.data) * source.h * source.w)
     };
 
-    FOREACH_PXL_IN_CH(source, 0, {
-        PXL_AT(pxl_list, x, y, c).label = 0;
-        PXL_AT(pxl_list, x, y, c).x = x;
-        PXL_AT(pxl_list, x, y, c).y = y;
-    });
+    int __x0 = source.bounds.x1;
+    int __x1 = source.bounds.x2;
+    int __y0 = source.bounds.y1;
+    int __y1 = source.bounds.y2;
+    for(int y = __y0; y < __y1; ++y){ 
+        for(int x = __x0; x < __x1; ++x){ 
+            LIST_AT(pxl_list, x, y).label = 0;
+            LIST_AT(pxl_list, x, y).x = x;
+            LIST_AT(pxl_list, x, y).y = y;
+        }
+    }
 
     int cc_count = 0;
 
@@ -213,17 +313,17 @@ extract_cc_t extract_cc(image_t source){
     FOREACH_PXL_IN_CH(source, 0, {
         if(PXL_AT(source, x, y, c)){
 
-            if(PXL_AT(pxl_list, x, y, c).label) continue;
+            if(LIST_AT(pxl_list, x, y).label) continue;
 
-            PUSH(positions, PXL_AT(pxl_list, x, y, c));
+            PUSH(positions, LIST_AT(pxl_list, x, y));
             
             while(positions.count){
                 DEQUEUE(positions, current);
 
-                if(PXL_AT(pxl_list, current.x, current.y, c).label != 0){
+                if(LIST_AT(pxl_list, current.x, current.y).label != 0){
                     continue;
                 } else {
-                    PXL_AT(pxl_list, current.x, current.y, c).label = cc_count + 1;
+                    LIST_AT(pxl_list, current.x, current.y).label = cc_count + 1;
                 }
 
                 for(int i = 0; i < connectivity; i++) {
@@ -232,8 +332,8 @@ extract_cc_t extract_cc(image_t source){
                     
                     if(nx < 0 || nx >= source.w || ny < 0 || ny >= source.h) continue;
                     
-                    if(PXL_AT(source, nx, ny, c) && PXL_AT(pxl_list, nx, ny, c).label == 0){
-                        PUSH(positions, PXL_AT(pxl_list, nx, ny, c));
+                    if(PXL_AT(source, nx, ny, c) && LIST_AT(pxl_list, nx, ny).label == 0){
+                        PUSH(positions, LIST_AT(pxl_list, nx, ny));
                     }
                 }
             }
@@ -287,7 +387,7 @@ extract_cc_t extract_cc(image_t source){
     return extraction;
 }
 
-void free_extraction(extract_cc_t * extraction){
+void img_free_extraction(extract_cc_t * extraction){
     for(int i = 0; i < extraction->count; ++i){
         FREE(extraction->items[i].pixels.items);
     }
@@ -297,7 +397,7 @@ void free_extraction(extract_cc_t * extraction){
     extraction->capacity = 0;
 }
 
-image_t hit_or_miss(image_t source, matrix_t structure){
+img_t img_hit_or_miss(img_t source, mat_t structure){
     
     int tx, ty, mtx_value, pxl_value;
     int hit;
@@ -305,7 +405,7 @@ image_t hit_or_miss(image_t source, matrix_t structure){
     int center_x = structure.c/2;
     int center_y = structure.r/2;
 
-    image_t result = clone(source);
+    img_t result = img_clone(source);
 
     FOREACH_PXL(result, {
 

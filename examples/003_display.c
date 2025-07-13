@@ -2,7 +2,7 @@
 
 int main(){
 
-    image_t image = img_load("samples/cat.sample.png");
+    img_t image = img_load("samples/cat.sample.png");
     
     /**
      * Display Image Implemented Methods
@@ -25,7 +25,7 @@ int main(){
     img_show(image, "Cat.png");
     wait_until();
 
-    free_image(&image);
+    img_free(&image);
 
     /**
      * If you want to free all resources allocated

@@ -1,6 +1,6 @@
 #include "imagec.h"
 
-void create_example_shape(image_t image) {
+void create_example_shape(img_t image) {
     for(int i = 0; i < 15; ++i)
         for(int j = 0; j < 15; ++j)
             PXL_AT(image, 118 + i, 113 + j, 0) = 255;
@@ -16,10 +16,10 @@ void create_example_shape(image_t image) {
 
 int main(){
 
-    image_t image = create_image(256, 256, 1);
+    img_t image = img_create(256, 256, 1);
     create_example_shape(image);
     
-    image_t frontier = extract_frontier(image);
+    img_t frontier = extract_frontier(image);
     
     img_show(image, "Original");
     img_show(frontier, "Frontier");

@@ -1,6 +1,6 @@
 #include "imagec.h"
 
-void draw_circle_with_hole(image_t image, int cx, int cy, int r, int hole_size) {
+void draw_circle_with_hole(img_t image, int cx, int cy, int r, int hole_size) {
     for (int y = -r; y <= r; ++y) {
         for (int x = -r; x <= r; ++x) {
             if (x*x + y*y <= r*r) {
@@ -15,7 +15,7 @@ void draw_circle_with_hole(image_t image, int cx, int cy, int r, int hole_size) 
     }
 }
 
-void create_example_shape(image_t image) {
+void create_example_shape(img_t image) {
     draw_circle_with_hole(image, 50, 50, 15, 2);
     draw_circle_with_hole(image, 100, 50, 12, 2);
     draw_circle_with_hole(image, 150, 50, 10, 1);
@@ -26,17 +26,17 @@ void create_example_shape(image_t image) {
 
 int main(){
 
-    image_t image = create_image(256, 256, 1);
+    img_t image = img_create(256, 256, 1);
     create_example_shape(image);
     
-    image_t filled = fill_holes(image);
+    img_t filled = img_fillholes(image);
     
     img_show(image, "Original");
     img_show(filled, "Filled Holes");
 
-    image_t fig916a = img_load("samples/Fig0916A.sample.png");
+    img_t fig916a = img_load("samples/Fig0916A.sample.png");
     img_show(fig916a, "FIG916A");
-    img_show(fill_holes(fig916a), "FIG916A Filled");
+    img_show(img_fillholes(fig916a), "FIG916A Filled");
 
     wait_until();
 

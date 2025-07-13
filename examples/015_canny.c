@@ -2,17 +2,17 @@
 
 int main(){
 
-    image_t lenna = img_load("samples/lenna.sample.png");
+    img_t lenna = img_load("samples/lenna.sample.png");
 
-    image_t result = canny(lenna, 0.1, 0.5);
+    img_t result = img_canny(lenna, 0.1, 0.5);
 
     img_show(lenna, "Original");
-    img_show(result, "Canny Edge Detection");
+    img_show(result, "img_canny Edge Detection");
 
     wait_until();
 
-    free_image(&lenna);
-    free_image(&result);
+    img_free(&lenna);
+    img_free(&result);
 
     shutdown_display();
 
